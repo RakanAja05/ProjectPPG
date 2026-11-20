@@ -17,19 +17,22 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
       - BP_GameInstance:EventGraph sudah bersih — 6 node lama dihapus via delete_node.
       - Fungsi publik EnsureSecondLocalPlayer tetap ada di BP_GameInstance (guard GetNumLocalPlayerControllers < 2 -> CreateLocalPlayer(-1, true)).
       - EventBeginPlay di BP_ThirdPersonGameMode ditulis ulang **tanpa cast** — inline GetNumLocalPlayerControllers < 2 -> CreateLocalPlayer(-1, true). Compile + save berhasil.
-   6. **Fix DefaultEngine.ini — root cause split-screen gagal (belum diverifikasi)**:
-      - Setelah editor crash, gameInstanceClass ke-reset ke default /Script/Engine.GameInstance. Fix: ditambahkan GameInstanceClass=/Game/Splashfall/Blueprints/BP_GameInstance.BP_GameInstance_C ke config.
-      - GlobalDefaultGameMode dikoreksi dari /Game/ThirdPerson/Blueprints/BP_ThirdPersonGameMode -> /Game/GameMode/BP_ThirdPersonGameMode (konsisten dengan WorldSettings).
-      - **Perlu restart editor + tes PIE** untuk verifikasi bahwa split-screen aktif.
+   6. **Split-Screen Horizontal Terverifikasi (Spike W1-B1)**:
+      - Layar split-screen horizontal 2 player telah muncul di PIE setelah restart editor.
+   7. **Perbaikan Input Controller & Verifikasi Karakter (Spike W1-B1)**:
+      - `BP_PlayerController:EventGraph` sebelumnya kosong, lalu sempat terjadi error `Accessed None` pada getter subsystem karena argumen `0`.
+      - Diperbaiki via MCP menggunakan node `(LocalPlayerSubsystems|GetEnhancedInputLocalPlayerSubsystem)` murni tanpa argumen integer: `EventBeginPlay -> DelayUntilNextTick -> if (IsLocalPlayerController) -> AddMappingContext(IMC_Default, 0) & AddMappingContext(IMC_MouseLook, 0)`.
+      - `BP_Player:EventGraph` diinspeksi via pin connectivity: event `IA_Move`, `IA_Look`, `IA_MouseLook`, dan `IA_Jump` terkonfirmasi sudah terhubung ke fungsi `Move`, `Aim`, `Jump`, dan `StopJumping`.
+      - Kedua Blueprint (`BP_PlayerController` dan `BP_Player`) ter-compile tanpa error (`returnValue: null`) dan tersimpan di disk.
 
 ---
 
 ## 2. Next Action
 - **Tindakan**:
-  1. **Restart Unreal Editor** agar `DefaultEngine.ini` yang sudah diperbarui dibaca ulang (GameInstanceClass & GlobalDefaultGameMode baru).
-  2. Uji **Play In Editor (PIE)** — verifikasi layar terbagi 2 (split-screen horizontal) dan masing-masing player bisa bergerak.
-  3. Jika split-screen sudah OK, lanjut ke **W1-A1** (tambah variabel HP/PotionCount/PlayerIndex ke `BP_Player`, kamera over-the-shoulder).
-- **Pelaksana**: Manusia di Unreal Editor (restart + PIE test), lalu agent untuk W1-A1.
+  1. Uji **Play In Editor (PIE)** — tes pergerakan karakter P1 (WASD / Stick PS 1) dan P2 (Stick PS 2) serta bidikan kamera dan lompat.
+  2. Jika kedua pemain sudah dapat bergerak bebas, **Spike W1-B1 dinyatakan tuntas sepenuhnya**.
+  3. Lanjut ke task **W1-A1** (Karakter: setup variabel HP=100, PotionCount=3, PlayerIndex, dan kamera over-the-shoulder).
+- **Pelaksana**: Manusia di Unreal Editor (tes kontrol PIE), lalu agent untuk W1-A1.
 - **Prasyarat**: Sudah terpenuhi seluruhnya.
 
 ---
@@ -144,6 +147,9 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
    Menulis form DSL event kosong tanpa statement seperti `(event EventInit)` memicu unhandled exception di parser C++ plugin MCP sehingga Unreal Editor crash (`ConnectionResetError: [WinError 10054]`).
    *Solusi*: Jangan pernah mengirim form event kosong ke `write_graph_dsl`. Untuk membersihkan atau mengosongkan node dari suatu grafik, gunakan kombinasi `find_nodes` untuk mendapatkan node referensi lalu panggil `delete_node`.
 
+10. **Format Asset Reference pada `write_graph_dsl` dan `set_pin_value`**:
+    Menulis asset reference inline pada DSL tidak boleh menggunakan format object `{refPath: ...}` ataupun `(load ...)`. Cukup gunakan string path berpetik (contoh: `"/Game/Input/IMC_Default.IMC_Default"`). Alternatifnya, pin default value bertipe object reference dapat di-set langsung menggunakan tool `set_pin_value` dengan string path aset.
+
 ---
 
 ## 7. Log Sesi
@@ -154,3 +160,5 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | 2026-11-20 | Antigravity | Pengecekan GameMode & PlayerController aktif, setup `.gitignore` (`.gemini/`, `.agents/`, `tools/`), pemindahan helper MCP ke `tools/unreal_mcp_client.py`, pembuatan `BP_GameInstance` di `/Game/Splashfall/Blueprints/` dengan logic guard `EventInit` (`GetNumLocalPlayerControllers < 2` -> `CreateLocalPlayer(-1)`), verifikasi compile & save via Unreal MCP. | Fondasi spike W1-B1 siap, `BP_GameInstance` ter-compile & tersimpan di disk tanpa error. Pengaturan split-screen horizontal terkonfirmasi aktif di config. |
 | 2026-11-20 | Antigravity | Refactor lifecycle local player: buat fungsi `EnsureSecondLocalPlayer` di `BP_GameInstance`, panggil pada `Event BeginPlay` di `BP_ThirdPersonGameMode`. Pembersihan node lama `EventInit` di `BP_GameInstance:EventGraph` menggunakan `find_nodes` & `delete_node` via MCP setelah editor restart. | Kedua Blueprint sukses di-compile dan di-save tanpa error. Error "No game mode set" teratasi secara arsitektural. |
 | 2026-11-20 | Antigravity | Investigasi split-screen gagal (layar masih 1 player): (1) Output Log PIE tidak ada error/warning LocalPlayer → konfirmasi `EnsureSecondLocalPlayer` tidak pernah terpanggil. (2) `gameInstanceClass` terkonfirmasi ke-reset ke default `/Script/Engine.GameInstance` setelah editor crash. (3) Fix: tambah `GameInstanceClass` & koreksi `GlobalDefaultGameMode` di `Config/DefaultEngine.ini` supaya persist setelah restart. (4) Tulis ulang `EventBeginPlay` di `BP_ThirdPersonGameMode` tanpa cast—inline `GetNumLocalPlayerControllers < 2 → CreateLocalPlayer(-1, true)`—compile ✅ save ✅. | Root cause teridentifikasi dan diperbaiki. `DefaultEngine.ini` kini menyimpan `GameInstanceClass` dan `GlobalDefaultGameMode` yang benar. Perlu restart editor + tes PIE ulang oleh user. |
+| 2026-11-20 | Antigravity | Inspeksi & perbaikan kontrol input karakter (Spike W1-B1): (1) Membaca dan membandingkan `BP_PlayerController:EventGraph` dengan `BP_ThirdPersonPlayerController` (ditemukan `BP_PlayerController` kosong tanpa mapping context). (2) Menambahkan `DelayUntilNextTick` -> `IsLocalPlayerController` -> `AddMappingContext(IMC_Default)` & `AddMappingContext(IMC_MouseLook)` pada `BP_PlayerController:EventGraph` via MCP, compile ✅, save ✅. (3) Menginspeksi pin connectivity `BP_Player:EventGraph`: terverifikasi node Enhanced Input `IA_Move`, `IA_Look`, `IA_MouseLook`, `IA_Jump` sudah terhubung ke fungsi `Move`, `Aim`, `Jump`, `StopJumping`. | Input Controller siap untuk kedua player (gamepad + fallback keyboard/mouse). Menunggu verifikasi gerak di PIE. |
+| 2026-11-20 | Antigravity | Bug fix `BP_PlayerController:EventGraph`: perbaiki pemanggilan subsystem Enhanced Input dari `PlayerController|...` dengan argumen `0` menjadi `(LocalPlayerSubsystems|GetEnhancedInputLocalPlayerSubsystem)` tanpa argumen tambahan untuk menghilangkan runtime error `Accessed None`. | Blueprint `BP_PlayerController` berhasil di-compile tanpa error (`returnValue: null`) dan disimpan ke disk. Siap dites ulang di PIE. |

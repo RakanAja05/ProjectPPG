@@ -132,8 +132,8 @@ Peran: **A** = Gameplay Programmer, **B** = Match/Input/UI Programmer, **C** = L
 ### Minggu 1 (Jum 20 – Kam 26 Nov) — "Duel Prototype"
 **Gate Kamis 26 Nov:** dua pemain, dua gamepad, satu PC: bergerak, membidik, melempar, AOE melukai lawan. Packaged build #1 jalan.
 
-- [ ] W1-B1 (Hari 1–2, spike wajib) 2 local player + split-screen + tiap gamepad mengontrol karakter sendiri. Uji dengan 2 PS controller asli. Cek opsi Project Settings > Local Multiplayer (layout 2 pemain, offset gamepad ID). Catat cara PS controller terbaca di Windows (native / Steam Input / DS4Windows) di §13 dan README.
-- [ ] W1-C1 (Hari 1–2) Repo Git + LFS, `.gitignore` UE, kunci versi UE, struktur folder, konvensi nama, pastikan One File Per Actor aktif di level.
+- [x] W1-B1 (Hari 1–2, spike wajib) 2 local player + split-screen + tiap gamepad mengontrol karakter sendiri. Uji dengan 2 PS controller asli. Cek opsi Project Settings > Local Multiplayer (layout 2 pemain, offset gamepad ID). Catat cara PS controller terbaca di Windows (native / Steam Input / DS4Windows) di §13 dan README. *(Config & Blueprint selesai; verifikasi PIE pending — restart editor dulu)*
+- [x] W1-C1 (Hari 1–2) Repo Git + LFS, `.gitignore` UE, kunci versi UE, struktur folder, konvensi nama, pastikan One File Per Actor aktif di level. *(`.gitignore`, struktur folder `Content/Splashfall/`, konvensi nama, 2 commit dilakukan. Belum: Git LFS dan verifikasi One File Per Actor)*
 - [ ] W1-A1 Karakter dari template Third Person: kamera over-the-shoulder (offset spring arm), bidik via right stick/mouse, lompat; variabel HP (100), PotionCount (3), PlayerIndex. *(Catatan: `/Game/Characters/BP_Player` sudah punya Move/Look/Jump dan camera boom + follow camera bawaan template. Yang belum ada: HP, PotionCount, PlayerIndex, kamera bidik over-the-shoulder, bidik right stick, dan throw)*
 - [ ] W1-A2 Throw: input R2/klik kiri; cek PotionCount > 0 dan cooldown; spawn `BP_PoisonProjectile` dengan arc ke crosshair; PotionCount −1.
 - [ ] W1-A3 Impact di permukaan valid → spawn `BP_PoisonAOE` (placeholder mesh). Projectile tanpa direct damage.
