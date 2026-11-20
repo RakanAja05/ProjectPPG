@@ -1,14 +1,17 @@
-# Unreal Engine generated files
-Binaries/
+﻿Binaries/
 DerivedDataCache/
 Intermediate/
 Saved/
-
-# IDE
 .vs/
-.idea/
-
-# Build files
+*.VC.db
+*.opensdf
+*.opendb
+*.sdf
 *.sln
 *.suo
-*.user
+
+# Antigravity & Agent tooling
+.gemini/
+.agents/
+tools/
+
