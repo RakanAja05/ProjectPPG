@@ -33,19 +33,26 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
    10. **Task W1-A3 SELESAI (Impact & Spawn BP_PoisonAOE Placeholder)**:
       - `/Game/Splashfall/Blueprints/BP_PoisonAOE` dibuat (Parent: Actor): `SphereComponent` (`AOECollision`, radius 275.0, collision profile `OverlapAllDynamic`, `bGenerateOverlapEvents = true`), visual placeholder `StaticMeshComponent` (`AOEMesh`, `/Engine/BasicShapes/Cylinder.Cylinder`, relative scale `(5.5, 5.5, 0.05)`, collision profile `NoCollision`), dan CDO `initialLifeSpan = 5.0` (durasi 5 detik). Compile ✅, save ✅.
       - `/Game/Splashfall/Blueprints/BP_PoisonProjectile`: Mengimplementasikan `Collision|EventHit` di `EventGraph` dengan guard `Other != GetOwner()`. Ketika proyektil menabrak permukaan valid / aktor lain di luar pelempar: memanggil `SpawnActorBPPoisonAOE` di titik `HitLocation` dengan `CollisionHandling = AlwaysSpawn` dan `Owner = GetOwner()`, lalu memanggil `DestroyActor(self)`. `Physics|SetNotifyRigidBodyCollision` diaktifkan pada `CollisionSphere`. Tanpa direct damage dari proyektil. Compile ✅, save ✅.
+   11. **Task W1-A4 SELESAI & TERVERIFIKASI PIE (Damage Overlap Counter & Poison Tick di BP_Player)**:
+      - Variabel baru di `BP_Player`: `PoisonOverlapCounter` (int, default 0), `PoisonDamagePerTick` (float, default 2.5), dan `PoisonTickInterval` (float, default 0.5) diset pada CDO.
+      - Komponen `Health` di-instansiasi pada `BP_Player:UserConstructionScript` via `AddComponent|Custom|AddHealth` -> `SetHealth` sehingga tidak `None` saat runtime.
+      - Fungsi `ApplyPoisonTick` dibuat via DSL di `BP_Player`: guard `PoisonOverlapCounter > 0` dan `Utilities|IsValid Health` -> panggil `Health -> TakeDamage(PoisonDamagePerTick)` (2.5 HP/0.5s = 5 DPS) -> `PrintString` menampilkan nama aktor dan sisa HP pemain secara real-time.
+      - `EventActorBeginOverlap` di-wire incremental via MCP `create_node` + `connect_pins` (tanpa menimpa Enhanced Input): Cast ke `BP_PoisonAOE` -> Guard `GetOwner != self` (anti-friendly-fire) -> increment `PoisonOverlapCounter + 1` -> jika `PoisonOverlapCounter == 1` panggil `SetTimerbyFunctionName("ApplyPoisonTick", PoisonTickInterval, true)` (anti-stacking).
+      - `EventActorEndOverlap` di-wire incremental: Cast ke `BP_PoisonAOE` -> Guard `GetOwner != self` -> decrement `PoisonOverlapCounter = Max(0, PoisonOverlapCounter - 1)` -> jika `PoisonOverlapCounter <= 0` panggil `ClearTimerbyFunctionName("ApplyPoisonTick")`.
+      - Perbaikan attachment collision `BP_PoisonAOE` ke `DefaultSceneRoot` dan `SetGenerateOverlapEvents(true)`.
+      - Hasil tes PIE user: **SUKSES**. Karakter terkena racun musuh mengalami pengurangan HP bertahap (100 -> 97.5 -> 95.0 dst.) dan berhenti saat keluar dari genangan. Compile ✅, save dirty assets ✅.
 
 ---
 
 ## 2. Next Action
-- **Tindakan**: Masuk ke task **W1-A4 (Damage & Overlap Counter di Karakter)**:
-  1. Tambahkan `PoisonOverlapCounter` (Integer, default 0) pada `BP_Player`.
-  2. Implementasikan `OnActorBeginOverlap` dan `OnActorEndOverlap` (atau event overlap sphere AOE) pada `BP_Player` untuk mendeteksi `BP_PoisonAOE`.
-  3. Validasi kepemilikan AOE: hanya tambahkan counter jika AOE milik lawan (`aoe.Owner != self`), hindari friendly fire.
-  4. Implementasikan damage tick berbasis timer (interval 0.5 s, 2.5 HP per tick) ketika `PoisonOverlapCounter > 0`, memotong HP pada komponen `Health`.
-  5. Pastikan counter tidak bertumpuk melebihi tick rate (tanpa damage stacking).
-  6. Compile, save, dan verifikasi damage di PIE (kedua pemain saling lempar).
+- **Tindakan**: Masuk ke task **W1-B2 (`BP_GameMode` spawn 2 karakter & mapping context)**:
+  1. Inspeksi alur spawn existing di `/Game/GameMode/BP_ThirdPersonGameMode`.
+  2. Implementasikan spawn 2 karakter di lokasi PlayerStart P1 dan P2 berdasarkan player index.
+  3. Pastikan guard `Create Local Player` tetap terjaga agar tidak terjadi duplikasi player.
+  4. Atur mapping context per player controller.
+  5. Compile, save, dan uji spawn kedua karakter di PIE.
 - **Pelaksana**: Agent via Unreal MCP (Blueprint) + verifikasi PIE user.
-- **Prasyarat**: W1-A3 sudah tuntas 100%.
+- **Prasyarat**: W1-A4 sudah tuntas 100% dan di-commit ke Git.
 
 ---
 
@@ -88,6 +95,7 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | `BP_PoisonProjectile` siap | Terverifikasi via MCP | `/Game/Splashfall/Blueprints/BP_PoisonProjectile` (SphereComponent radius 15 BlockAllDynamic & NotifyRigidBodyCollision, Mesh scale 0.25 NoCollision, ProjectileMovement speed 1400 gravity 1.0, lifeSpan 5s, EventHit -> spawn AOE di HitLocation + DestroyActor). |
 | `BP_PoisonAOE` siap | Terverifikasi via MCP | `/Game/Splashfall/Blueprints/BP_PoisonAOE` (SphereComponent radius 275 OverlapAllDynamic & GenerateOverlapEvents, Mesh cylinder scale 5.5x5.5x0.05 NoCollision, CDO lifeSpan 5s). |
 | Mekanik Throw & Cooldown pada `BP_Player` | Terverifikasi via MCP | Event `IA_Throw` -> Guard `(PotionCount > 0) AND bCanThrow` -> `SetCanThrow(false)` -> `ThrowPotion` (spawn projectile di aim rotasi + `PotionCount - 1`) -> `Delay(ThrowCooldown = 0.75)` -> `SetCanThrow(true)`. |
+| Damage Overlap Counter & Timer pada `BP_Player` | Terverifikasi via MCP | Variabel `PoisonOverlapCounter` (0), `PoisonDamagePerTick` (2.5), `PoisonTickInterval` (0.5). Event `BeginOverlap` -> guard enemy AOE -> counter+1 -> jika counter==1 jalankan timer looping `ApplyPoisonTick`. Event `EndOverlap` -> counter-1 (clamped min 0) -> jika counter<=0 clear timer. Fungsi `ApplyPoisonTick` memotong 2.5 HP ke Health component. |
 | Enhanced Input yang sudah tersedia | Hasil introspeksi agent | `IA_Move`, `IA_Look`, `IA_MouseLook`, `IA_Jump`, `IA_Throw` di `/Game/Input/Actions/` serta `IMC_Default`. |
 | Input Actions yang belum tersedia | Hasil introspeksi agent | Input Action untuk Pause Menu (Options). |
 | Animasi Mannequin lengkap | Hasil introspeksi agent | Tersedia di `/Game/Characters/Mannequins/Anims/` termasuk Jump, Jog, Walk, Death, dan HitReact. |
@@ -182,3 +190,4 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | 2026-11-20 | Antigravity | Eksekusi task W1-A1: (1) `/Game/Components/Health`: perbaiki bug `GainHealth` (sambungkan output clamp ke `SetCurrentHealth`), hapus dependensi `HUDClass` di `EventBeginPlay`, set CDO `CurrentHealth=100.0`, `MaxHealth=100.0`, compile ✅, save ✅. (2) `/Game/Characters/BP_Player`: pasang komponen `Health` via `ActorTools.add_component`, tambah variabel `PlayerIndex` (0), `PotionCount` (3), `MaxPotionCount` (5) via CDO, setup kamera OTS di `UserConstructionScript` (`TargetArmLength=240.0`, `SocketOffset=(0, 60, 50)`), compile ✅, save ✅. | Task W1-A1 selesai penuh. Pondasi karakter, HP, resource potion, dan kamera tempur siap untuk mekanik throw (W1-A2). |
 | 2026-11-20 | Antigravity | Eksekusi task W1-A2: (1) Buat `IA_Throw` (Boolean) & daftarkan ke `IMC_Default` (`Gamepad_RightTrigger` & `LeftMouseButton`), save ✅. (2) Buat `BP_PoisonProjectile` (SphereComponent radius 15 BlockAllDynamic, Mesh scale 0.25 NoCollision, ProjectileMovement speed 1400 gravity 1.0, lifeSpan 5.0), compile ✅, save ✅. (3) Buat fungsi `ThrowPotion` di `BP_Player` (spawn projectile di arah aim + kurangi potion), tambah variabel `ThrowCooldown` (0.75) & `bCanThrow` (true), pasang event `IA_Throw` di `BP_Player:EventGraph` dengan guard `PotionCount > 0 && bCanThrow` -> `SetCanThrow(false)` -> `ThrowPotion` -> `Delay(ThrowCooldown)` -> `SetCanThrow(true)`, compile ✅, save ✅. | Task W1-A2 selesai penuh. Mekanik lempar proyektil dengan arc, resource decrement, dan cooldown siap diuji di PIE. |
 | 2026-11-20 | Antigravity | Eksekusi task W1-A3: (1) Buat `BP_PoisonAOE` di `/Game/Splashfall/Blueprints/` (SphereComponent radius 275 OverlapAllDynamic & `bGenerateOverlapEvents=true`, StaticMeshComponent Cylinder scale 5.5x5.5x0.05 NoCollision, CDO `initialLifeSpan=5.0`), compile ✅, save ✅. (2) Update `BP_PoisonProjectile`: tambahkan handler `Collision|EventHit` di `EventGraph` (guard `Other != GetOwner()`) -> spawn `BP_PoisonAOE` di `HitLocation` (`Owner = GetOwner()`) -> `DestroyActor(self)`; pasang `Physics|SetNotifyRigidBodyCollision` di `UserConstructionScript`, compile ✅, save ✅. | Task W1-A3 selesai penuh. Proyektil sukses mendeteksi impact permukaan, memunculkan genangan AOE berdurasi 5s, dan hancur tanpa direct damage. |
+| 2026-11-20 | Antigravity | Eksekusi task W1-A4: (1) Tambahkan variabel `PoisonOverlapCounter` (int, default 0), `PoisonDamagePerTick` (float, default 2.5), dan `PoisonTickInterval` (float, default 0.5) pada `BP_Player` via CDO. (2) Instansiasi komponen `Health` di `BP_Player:UserConstructionScript` via `AddComponent|Custom|AddHealth` -> `SetHealth`. (3) Buat fungsi `ApplyPoisonTick` via DSL dengan guard `PoisonOverlapCounter > 0` & `IsValid Health` -> `Health->TakeDamage(2.5)` -> `PrintString` info nama aktor & HP. (4) Wiring incremental `EventActorBeginOverlap` & `EventActorEndOverlap` di `BP_Player:EventGraph` (anti-friendly-fire, anti-stacking timer). (5) Perbaiki attachment `BP_PoisonAOE` collision sphere ke root dan `SetGenerateOverlapEvents(true)`. Compile ✅, save ✅. | Task W1-A4 selesai penuh dan terverifikasi di PIE (karakter terkena racun HP berkurang dari 100 secara bertahap 2.5/0.5s, racun sendiri tidak melukai, keluar dari racun menghentikan tick). |
