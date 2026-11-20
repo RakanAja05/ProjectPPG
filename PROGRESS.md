@@ -20,20 +20,23 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
    6. **Split-Screen Horizontal Terverifikasi (Spike W1-B1)**:
       - Layar split-screen horizontal 2 player telah muncul di PIE setelah restart editor.
    7. **Perbaikan Input Controller & Verifikasi Karakter (Spike W1-B1)**:
-      - `BP_PlayerController:EventGraph` sebelumnya kosong, lalu sempat terjadi error `Accessed None` pada getter subsystem karena argumen `0`.
-      - Diperbaiki via MCP menggunakan node `(LocalPlayerSubsystems|GetEnhancedInputLocalPlayerSubsystem)` murni tanpa argumen integer: `EventBeginPlay -> DelayUntilNextTick -> if (IsLocalPlayerController) -> AddMappingContext(IMC_Default, 0) & AddMappingContext(IMC_MouseLook, 0)`.
-      - `BP_Player:EventGraph` diinspeksi via pin connectivity: event `IA_Move`, `IA_Look`, `IA_MouseLook`, dan `IA_Jump` terkonfirmasi sudah terhubung ke fungsi `Move`, `Aim`, `Jump`, dan `StopJumping`.
-      - Kedua Blueprint (`BP_PlayerController` dan `BP_Player`) ter-compile tanpa error (`returnValue: null`) dan tersimpan di disk.
+      - `BP_PlayerController:EventGraph` diperbaiki via MCP: `EventBeginPlay -> DelayUntilNextTick -> if (IsLocalPlayerController) -> AddMappingContext(IMC_Default, 0) & AddMappingContext(IMC_MouseLook, 0)` tanpa argumen integer pada getter subsystem.
+      - Hasil tes PIE oleh user: karakter berhasil bergerak dan membidik via keyboard/mouse tanpa error runtime `Accessed None`. Verifikasi 2 gamepad PS asli menyusul di tahap playtest.
+   8. **Task W1-A1 SELESAI (Karakter, Health Component, dan Kamera OTS)**:
+      - `/Game/Components/Health`: Bug `GainHealth` diperbaiki dengan menghubungkan output `Clamp(Float)` ke `SetCurrentHealth`. Pemanggilan `GetActorOfClass(HUDClass)` dan `SetHUD` pada `EventBeginPlay` telah dibersihkan. Default value `CurrentHealth = 100.0` dan `MaxHealth = 100.0` telah diset pada CDO. Compile ✅, save ✅.
+      - `/Game/Characters/BP_Player`: Komponen `/Game/Components/Health` berhasil dipasangkan (`Variables|Default|GetHealth` tersedia). Variabel `PlayerIndex` (int, default 0), `PotionCount` (int, default 3), dan `MaxPotionCount` (int, default 5) telah ditambahkan dan diset pada CDO.
+      - Kamera Over-The-Shoulder (OTS): Dikonfigurasi pada `UserConstructionScript` `BP_Player` (`TargetArmLength = 240.0`, `SocketOffset = (X=0.0, Y=60.0, Z=50.0)`). Compile ✅, save ✅.
 
 ---
 
 ## 2. Next Action
-- **Tindakan**:
-  1. Uji **Play In Editor (PIE)** — tes pergerakan karakter P1 (WASD / Stick PS 1) dan P2 (Stick PS 2) serta bidikan kamera dan lompat.
-  2. Jika kedua pemain sudah dapat bergerak bebas, **Spike W1-B1 dinyatakan tuntas sepenuhnya**.
-  3. Lanjut ke task **W1-A1** (Karakter: setup variabel HP=100, PotionCount=3, PlayerIndex, dan kamera over-the-shoulder).
-- **Pelaksana**: Manusia di Unreal Editor (tes kontrol PIE), lalu agent untuk W1-A1.
-- **Prasyarat**: Sudah terpenuhi seluruhnya.
+- **Tindakan**: Masuk ke task **W1-A2 (Mekanik Lempar / Throw Projectile)**:
+  1. Siapkan Input Action `IA_Throw` (R2 / Gamepad Right Trigger Axis, klik kiri mouse fallback) dan daftarkan ke `IMC_Default`.
+  2. Implementasikan alur melempar pada `BP_Player`: cek `PotionCount > 0` dan timer cooldown (0.75 s), kurangi `PotionCount - 1`.
+  3. Hitung lintasan arc proyektil ke crosshair (Line Trace + `SuggestProjectileVelocityCustomArc`, dibatasi jarak maksimal 2500 uu).
+  4. Buat blueprint `BP_PoisonProjectile` di `/Content/Splashfall/Blueprints/` dan spawn saat melempar.
+- **Pelaksana**: Agent via Unreal MCP (Blueprint & Input) + verifikasi PIE user.
+- **Prasyarat**: W1-A1 sudah tuntas 100%.
 
 ---
 
@@ -66,11 +69,12 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | GameMode aktif terkonfirmasi | Terverifikasi via MCP & WorldSettings | `/Game/GameMode/BP_ThirdPersonGameMode` aktif pada `defaultGameMode` WorldSettings level `Lvl_ThirdPerson`. |
 | PlayerController aktif terkonfirmasi | Terverifikasi via MCP CDO | `/Game/Characters/BP_PlayerController` digunakan oleh GameMode aktif. |
 | Pengaturan Splitscreen & Gamepad di Config | Terverifikasi di `DefaultEngine.ini` | `bUseSplitscreen=true`, `twoPlayerSplitscreenLayout=Horizontal`, `bOffsetPlayerGamepadIds=false` (artinya Skip Assigning Gamepad to P1 = False). |
-| `BP_Player` tidak memiliki komponen `Health` terpasang | Hasil introspeksi agent | Properti class CDO hanya berisi Capsule, Mesh, CharacterMovement, CameraBoom, dan FollowCamera. |
-| Komponen `Health` tidak direferensikan oleh aset lain | Hasil introspeksi agent | Panggilan `get_referencers` pada `/Game/Components/Health` menghasilkan list kosong `[]`. |
-| Fungsi `GainHealth` pada `Health` men-set HP ke 0.0 | Hasil introspeksi agent | Grafik DSL `GainHealth` memanggil `(SetCurrentHealth 0.0)` alih-alih menambahkan nilai `Health To Add` (akan diperbaiki di W1-A1). |
-| `EventBeginPlay` pada `Health` memanggil `GetActorOfClass(HUDClass)` | Hasil introspeksi agent | Tidak kompatibel dengan local split-screen (akan dihapus di W1-A1). |
-| Nilai default `CurrentHealth` dan `MaxHealth` pada class `Health` bernilai 0 | Hasil introspeksi agent | Terbaca `0` pada CDO `/Game/Components/Health.Default__Health_C`; akan diset 100 di W1-A1. |
+| `BP_Player` memiliki komponen `Health` terpasang | Terverifikasi via MCP | Komponen `Health` terpasang dan `Variables|Default|GetHealth` tersedia di Blueprint. |
+| Komponen `Health` mandiri tanpa HUDClass | Terverifikasi via MCP | Pemanggilan `GetActorOfClass(HUDClass)` dan variabel `HUD` dihapus dari `EventBeginPlay`. |
+| Fungsi `GainHealth` pada `Health` normal | Terverifikasi via MCP | Output `Clamp(Float)` terhubung ke input `SetCurrentHealth`, clamping nilai dari 0.0 sampai `MaxHealth`. |
+| Nilai default `CurrentHealth` dan `MaxHealth` bernilai 100 | Terverifikasi via MCP CDO | Terbaca `100` pada CDO `/Game/Components/Health.Default__Health_C`. |
+| Variabel status gameplay pada `BP_Player` | Terverifikasi via MCP CDO | `PlayerIndex` (0), `PotionCount` (3), `MaxPotionCount` (5). |
+| Kamera Over-The-Shoulder (OTS) `BP_Player` | Terverifikasi via MCP | Dikonfigurasi di `UserConstructionScript`: `TargetArmLength = 240.0`, `SocketOffset = (0, 60, 50)`. |
 | Enhanced Input yang sudah tersedia | Hasil introspeksi agent | `IA_Move`, `IA_Look`, `IA_MouseLook`, `IA_Jump` di `/Game/Input/Actions/` serta `IMC_Default`. |
 | Input Actions yang belum tersedia | Hasil introspeksi agent | Input Action untuk Throw Potion (R2 / Gamepad Right Trigger) dan Pause Menu (Options). |
 | Animasi Mannequin lengkap | Hasil introspeksi agent | Tersedia di `/Game/Characters/Mannequins/Anims/` termasuk Jump, Jog, Walk, Death, dan HitReact. |
@@ -162,3 +166,4 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | 2026-11-20 | Antigravity | Investigasi split-screen gagal (layar masih 1 player): (1) Output Log PIE tidak ada error/warning LocalPlayer → konfirmasi `EnsureSecondLocalPlayer` tidak pernah terpanggil. (2) `gameInstanceClass` terkonfirmasi ke-reset ke default `/Script/Engine.GameInstance` setelah editor crash. (3) Fix: tambah `GameInstanceClass` & koreksi `GlobalDefaultGameMode` di `Config/DefaultEngine.ini` supaya persist setelah restart. (4) Tulis ulang `EventBeginPlay` di `BP_ThirdPersonGameMode` tanpa cast—inline `GetNumLocalPlayerControllers < 2 → CreateLocalPlayer(-1, true)`—compile ✅ save ✅. | Root cause teridentifikasi dan diperbaiki. `DefaultEngine.ini` kini menyimpan `GameInstanceClass` dan `GlobalDefaultGameMode` yang benar. Perlu restart editor + tes PIE ulang oleh user. |
 | 2026-11-20 | Antigravity | Inspeksi & perbaikan kontrol input karakter (Spike W1-B1): (1) Membaca dan membandingkan `BP_PlayerController:EventGraph` dengan `BP_ThirdPersonPlayerController` (ditemukan `BP_PlayerController` kosong tanpa mapping context). (2) Menambahkan `DelayUntilNextTick` -> `IsLocalPlayerController` -> `AddMappingContext(IMC_Default)` & `AddMappingContext(IMC_MouseLook)` pada `BP_PlayerController:EventGraph` via MCP, compile ✅, save ✅. (3) Menginspeksi pin connectivity `BP_Player:EventGraph`: terverifikasi node Enhanced Input `IA_Move`, `IA_Look`, `IA_MouseLook`, `IA_Jump` sudah terhubung ke fungsi `Move`, `Aim`, `Jump`, `StopJumping`. | Input Controller siap untuk kedua player (gamepad + fallback keyboard/mouse). Menunggu verifikasi gerak di PIE. |
 | 2026-11-20 | Antigravity | Bug fix `BP_PlayerController:EventGraph`: perbaiki pemanggilan subsystem Enhanced Input dari `PlayerController|...` dengan argumen `0` menjadi `(LocalPlayerSubsystems|GetEnhancedInputLocalPlayerSubsystem)` tanpa argumen tambahan untuk menghilangkan runtime error `Accessed None`. | Blueprint `BP_PlayerController` berhasil di-compile tanpa error (`returnValue: null`) dan disimpan ke disk. Siap dites ulang di PIE. |
+| 2026-11-20 | Antigravity | Eksekusi task W1-A1: (1) `/Game/Components/Health`: perbaiki bug `GainHealth` (sambungkan output clamp ke `SetCurrentHealth`), hapus dependensi `HUDClass` di `EventBeginPlay`, set CDO `CurrentHealth=100.0`, `MaxHealth=100.0`, compile ✅, save ✅. (2) `/Game/Characters/BP_Player`: pasang komponen `Health` via `ActorTools.add_component`, tambah variabel `PlayerIndex` (0), `PotionCount` (3), `MaxPotionCount` (5) via CDO, setup kamera OTS di `UserConstructionScript` (`TargetArmLength=240.0`, `SocketOffset=(0, 60, 50)`), compile ✅, save ✅. | Task W1-A1 selesai penuh. Pondasi karakter, HP, resource potion, dan kamera tempur siap untuk mekanik throw (W1-A2). |
