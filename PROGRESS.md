@@ -30,17 +30,22 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
       - Input Action `/Game/Input/Actions/IA_Throw` (Boolean) dibuat dan didaftarkan pada `/Game/Input/IMC_Default` untuk `Gamepad_RightTrigger` (R2) dan `LeftMouseButton` (fallback dev).
       - `/Game/Splashfall/Blueprints/BP_PoisonProjectile` dibuat (Parent: Actor) dengan root `SphereComponent` (radius 15, BlockAllDynamic), visual `StaticMeshComponent` (Sphere scale 0.25, NoCollision), `ProjectileMovementComponent` (InitialSpeed=1400, MaxSpeed=1400, GravityScale=1.0, bRotationFollowsVelocity=True), dan CDO `initialLifeSpan = 5.0`. Compile ✅, save ✅.
       - `/Game/Characters/BP_Player`: Variabel `ThrowCooldown` (float, default 0.75) dan `bCanThrow` (bool, default true) ditambahkan. Fungsi `ThrowPotion` mengkalkulasi spawn transform di depan aim rotation karakter (`GetBaseAimRotation`), mengurangi `PotionCount - 1`, dan memanggil `SpawnActorFromClass` (`BP_PoisonProjectile`). Pada `EventGraph`, event `IA_Throw:Started` disambungkan dengan guard `(PotionCount > 0) AND bCanThrow` -> `SetCanThrow(false)` -> `ThrowPotion` -> `Delay(ThrowCooldown)` -> `SetCanThrow(true)`. Compile ✅, save ✅.
+   10. **Task W1-A3 SELESAI (Impact & Spawn BP_PoisonAOE Placeholder)**:
+      - `/Game/Splashfall/Blueprints/BP_PoisonAOE` dibuat (Parent: Actor): `SphereComponent` (`AOECollision`, radius 275.0, collision profile `OverlapAllDynamic`, `bGenerateOverlapEvents = true`), visual placeholder `StaticMeshComponent` (`AOEMesh`, `/Engine/BasicShapes/Cylinder.Cylinder`, relative scale `(5.5, 5.5, 0.05)`, collision profile `NoCollision`), dan CDO `initialLifeSpan = 5.0` (durasi 5 detik). Compile ✅, save ✅.
+      - `/Game/Splashfall/Blueprints/BP_PoisonProjectile`: Mengimplementasikan `Collision|EventHit` di `EventGraph` dengan guard `Other != GetOwner()`. Ketika proyektil menabrak permukaan valid / aktor lain di luar pelempar: memanggil `SpawnActorBPPoisonAOE` di titik `HitLocation` dengan `CollisionHandling = AlwaysSpawn` dan `Owner = GetOwner()`, lalu memanggil `DestroyActor(self)`. `Physics|SetNotifyRigidBodyCollision` diaktifkan pada `CollisionSphere`. Tanpa direct damage dari proyektil. Compile ✅, save ✅.
 
 ---
 
 ## 2. Next Action
-- **Tindakan**: Masuk ke task **W1-A3 (Impact di Permukaan Valid & Spawn BP_PoisonAOE Placeholder)**:
-  1. Buat blueprint `BP_PoisonAOE` di `/Content/Splashfall/Blueprints/` (Parent: `Actor`) dengan collision sphere / volume overlap (radius 275 uu / 2.75 m) dan placeholder visual mesh/decal.
-  2. Implementasikan event `OnComponentHit` atau `EventHit` pada `BP_PoisonProjectile`: validasi impact permukaan, spawn `BP_PoisonAOE` di titik tumbukan, lalu hancurkan proyektil (`DestroyActor`).
-  3. Pastikan projectile tidak memberikan direct damage saat terkena karakter langsung (sesuai spesifikasi M5/W1-A3).
-  4. Compile, save, dan verifikasi lempar & kemunculan AOE di PIE.
+- **Tindakan**: Masuk ke task **W1-A4 (Damage & Overlap Counter di Karakter)**:
+  1. Tambahkan `PoisonOverlapCounter` (Integer, default 0) pada `BP_Player`.
+  2. Implementasikan `OnActorBeginOverlap` dan `OnActorEndOverlap` (atau event overlap sphere AOE) pada `BP_Player` untuk mendeteksi `BP_PoisonAOE`.
+  3. Validasi kepemilikan AOE: hanya tambahkan counter jika AOE milik lawan (`aoe.Owner != self`), hindari friendly fire.
+  4. Implementasikan damage tick berbasis timer (interval 0.5 s, 2.5 HP per tick) ketika `PoisonOverlapCounter > 0`, memotong HP pada komponen `Health`.
+  5. Pastikan counter tidak bertumpuk melebihi tick rate (tanpa damage stacking).
+  6. Compile, save, dan verifikasi damage di PIE (kedua pemain saling lempar).
 - **Pelaksana**: Agent via Unreal MCP (Blueprint) + verifikasi PIE user.
-- **Prasyarat**: W1-A2 sudah tuntas 100%.
+- **Prasyarat**: W1-A3 sudah tuntas 100%.
 
 ---
 
@@ -80,7 +85,8 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | Variabel status gameplay pada `BP_Player` | Terverifikasi via MCP CDO | `PlayerIndex` (0), `PotionCount` (3), `MaxPotionCount` (5). |
 | Kamera Over-The-Shoulder (OTS) `BP_Player` | Terverifikasi via MCP | Dikonfigurasi di `UserConstructionScript`: `TargetArmLength = 240.0`, `SocketOffset = (0, 60, 50)`. |
 | `IA_Throw` & Mapping `IMC_Default` | Terverifikasi via MCP | `IA_Throw` (Boolean) terdaftar di `IMC_Default` untuk `Gamepad_RightTrigger` (R2) dan `LeftMouseButton`. |
-| `BP_PoisonProjectile` siap | Terverifikasi via MCP | `/Game/Splashfall/Blueprints/BP_PoisonProjectile` (SphereComponent radius 15 BlockAllDynamic, Mesh scale 0.25 NoCollision, ProjectileMovement speed 1400 gravity 1.0, lifeSpan 5s). |
+| `BP_PoisonProjectile` siap | Terverifikasi via MCP | `/Game/Splashfall/Blueprints/BP_PoisonProjectile` (SphereComponent radius 15 BlockAllDynamic & NotifyRigidBodyCollision, Mesh scale 0.25 NoCollision, ProjectileMovement speed 1400 gravity 1.0, lifeSpan 5s, EventHit -> spawn AOE di HitLocation + DestroyActor). |
+| `BP_PoisonAOE` siap | Terverifikasi via MCP | `/Game/Splashfall/Blueprints/BP_PoisonAOE` (SphereComponent radius 275 OverlapAllDynamic & GenerateOverlapEvents, Mesh cylinder scale 5.5x5.5x0.05 NoCollision, CDO lifeSpan 5s). |
 | Mekanik Throw & Cooldown pada `BP_Player` | Terverifikasi via MCP | Event `IA_Throw` -> Guard `(PotionCount > 0) AND bCanThrow` -> `SetCanThrow(false)` -> `ThrowPotion` (spawn projectile di aim rotasi + `PotionCount - 1`) -> `Delay(ThrowCooldown = 0.75)` -> `SetCanThrow(true)`. |
 | Enhanced Input yang sudah tersedia | Hasil introspeksi agent | `IA_Move`, `IA_Look`, `IA_MouseLook`, `IA_Jump`, `IA_Throw` di `/Game/Input/Actions/` serta `IMC_Default`. |
 | Input Actions yang belum tersedia | Hasil introspeksi agent | Input Action untuk Pause Menu (Options). |
@@ -175,3 +181,4 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | 2026-11-20 | Antigravity | Bug fix `BP_PlayerController:EventGraph`: perbaiki pemanggilan subsystem Enhanced Input dari `PlayerController|...` dengan argumen `0` menjadi `(LocalPlayerSubsystems|GetEnhancedInputLocalPlayerSubsystem)` tanpa argumen tambahan untuk menghilangkan runtime error `Accessed None`. | Blueprint `BP_PlayerController` berhasil di-compile tanpa error (`returnValue: null`) dan disimpan ke disk. Siap dites ulang di PIE. |
 | 2026-11-20 | Antigravity | Eksekusi task W1-A1: (1) `/Game/Components/Health`: perbaiki bug `GainHealth` (sambungkan output clamp ke `SetCurrentHealth`), hapus dependensi `HUDClass` di `EventBeginPlay`, set CDO `CurrentHealth=100.0`, `MaxHealth=100.0`, compile ✅, save ✅. (2) `/Game/Characters/BP_Player`: pasang komponen `Health` via `ActorTools.add_component`, tambah variabel `PlayerIndex` (0), `PotionCount` (3), `MaxPotionCount` (5) via CDO, setup kamera OTS di `UserConstructionScript` (`TargetArmLength=240.0`, `SocketOffset=(0, 60, 50)`), compile ✅, save ✅. | Task W1-A1 selesai penuh. Pondasi karakter, HP, resource potion, dan kamera tempur siap untuk mekanik throw (W1-A2). |
 | 2026-11-20 | Antigravity | Eksekusi task W1-A2: (1) Buat `IA_Throw` (Boolean) & daftarkan ke `IMC_Default` (`Gamepad_RightTrigger` & `LeftMouseButton`), save ✅. (2) Buat `BP_PoisonProjectile` (SphereComponent radius 15 BlockAllDynamic, Mesh scale 0.25 NoCollision, ProjectileMovement speed 1400 gravity 1.0, lifeSpan 5.0), compile ✅, save ✅. (3) Buat fungsi `ThrowPotion` di `BP_Player` (spawn projectile di arah aim + kurangi potion), tambah variabel `ThrowCooldown` (0.75) & `bCanThrow` (true), pasang event `IA_Throw` di `BP_Player:EventGraph` dengan guard `PotionCount > 0 && bCanThrow` -> `SetCanThrow(false)` -> `ThrowPotion` -> `Delay(ThrowCooldown)` -> `SetCanThrow(true)`, compile ✅, save ✅. | Task W1-A2 selesai penuh. Mekanik lempar proyektil dengan arc, resource decrement, dan cooldown siap diuji di PIE. |
+| 2026-11-20 | Antigravity | Eksekusi task W1-A3: (1) Buat `BP_PoisonAOE` di `/Game/Splashfall/Blueprints/` (SphereComponent radius 275 OverlapAllDynamic & `bGenerateOverlapEvents=true`, StaticMeshComponent Cylinder scale 5.5x5.5x0.05 NoCollision, CDO `initialLifeSpan=5.0`), compile ✅, save ✅. (2) Update `BP_PoisonProjectile`: tambahkan handler `Collision|EventHit` di `EventGraph` (guard `Other != GetOwner()`) -> spawn `BP_PoisonAOE` di `HitLocation` (`Owner = GetOwner()`) -> `DestroyActor(self)`; pasang `Physics|SetNotifyRigidBodyCollision` di `UserConstructionScript`, compile ✅, save ✅. | Task W1-A3 selesai penuh. Proyektil sukses mendeteksi impact permukaan, memunculkan genangan AOE berdurasi 5s, dan hancur tanpa direct damage. |
