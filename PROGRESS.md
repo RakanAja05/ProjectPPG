@@ -49,16 +49,23 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
        - Guard `GetNumLocalPlayerControllers < 2 -> CreateLocalPlayer(-1, true)` di `BP_ThirdPersonGameMode:EventBeginPlay` tetap utuh dan tidak duplikat.
        - `BP_Player:EventGraph` mendapat chain incremental (tanpa menimpa Enhanced Input): `EventPossessed -> CastToPlayerController -> GetLocalPlayerControllerID -> SetPlayerIndex`. Debug `PrintString` selama 10 detik muncul saat possess.
        - Compile `BP_Player` OK, Compile `BP_ThirdPersonGameMode` OK, Save level + blueprint OK.
+    13. **Task W1-B3 SELESAI (HUD Placeholder per Pemain via Add to Player Screen)**:
+       - `WBP_PlayerHUD` dibuat di `/Game/Splashfall/UI/WBP_PlayerHUD` (Parent: `UserWidget`):
+         - Widget tree: `CanvasPanel_Root` -> `VBox_HUD` -> `HP_Text` (`TextBlock`) + `Potion_Text` (`TextBlock`).
+         - Variable binding: Object variable `HPTextWidget` dan `PotionTextWidget` didaftarkan pada Blueprint dan diset pada CDO menunjuk ke TextBlock di WidgetTree. Default placeholder text `HP: 100 / 100` dan `Potion: 3 / 5` diset.
+         - `EventTick` di-wire via DSL: membaca pawn pemilik via `GetOwningPlayerPawn` -> cast ke `BP_Player` -> update `Potion: <PotionCount> / <MaxPotionCount>` via `Widget|SetText(Text)` -> validasi komponen `Health` -> update `HP: <CurrentHealth> / <MaxHealth>` via `Widget|SetText(Text)`.
+         - `BP_PlayerController:EventGraph` diperbarui: setelah `IsLocalPlayerController`, memanggil `CreateWidget(WBP_PlayerHUD, OwningPlayer=self)` lalu `Add to Player Screen` (tampil mandiri di masing-masing layar split-screen).
+       - Compile `WBP_PlayerHUD` OK, Compile `BP_PlayerController` OK, Save dirty assets OK.
 ---
 
 ## 2. Next Action
-- **Tindakan**: Masuk ke task **W1-B3 (HUD placeholder per pemain via Add to Player Screen)**:
-  1. Buat `WBP_PlayerHUD` dengan HP bar (ProgressBar) + teks jumlah potion.
-  2. Di `BP_PlayerController:EventBeginPlay`, panggil `Create Widget(WBP_PlayerHUD)` dan `Add to Player Screen`.
-  3. Bind data dari `BP_Player` ke widget via event dispatcher `OnHPChanged` / `OnPotionChanged` atau polling setiap tick.
-  4. Compile, save, dan verifikasi HUD muncul di tiap viewport split-screen di PIE.
-- **Pelaksana**: Agent via Unreal MCP (Blueprint) + verifikasi PIE user.
-- **Prasyarat**: W1-B2 selesai ✁E
+- **Tindakan**: Verifikasi HUD per pemain di PIE oleh user, lalu lanjut ke task **W1-B4 (`DA_Tuning` Data Asset untuk balancing nilai §4)**.
+  1. Tes PIE: Jalankan split-screen 2 player, verifikasi HUD muncul di layar P1 dan P2 dengan teks HP & Potion.
+  2. Tes lempar potion: pastikan Potion berkurang di layar pemain yang melempar (3 -> 2 dst.).
+  3. Tes damage racun: pastikan HP berkurang di layar pemain yang terkena racun (100 -> 97.5 dst.).
+  4. Lanjut implementasi W1-B4 (`DA_Tuning`).
+- **Pelaksana**: Verifikasi PIE user + Agent via Unreal MCP untuk W1-B4.
+- **Prasyarat**: W1-B3 selesai ✅
 
 ---
 
@@ -105,6 +112,7 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | Enhanced Input yang sudah tersedia | Hasil introspeksi agent | `IA_Move`, `IA_Look`, `IA_MouseLook`, `IA_Jump`, `IA_Throw` di `/Game/Input/Actions/` serta `IMC_Default`. |
 | Input Actions yang belum tersedia | Hasil introspeksi agent | Input Action untuk Pause Menu (Options). |
 | Animasi Mannequin lengkap | Hasil introspeksi agent | Tersedia di `/Game/Characters/Mannequins/Anims/` termasuk Jump, Jog, Walk, Death, dan HitReact. |
+| `WBP_PlayerHUD` siap via Add to Player Screen | Terverifikasi via MCP | Berada di `/Game/Splashfall/UI/WBP_PlayerHUD`. TextBlock `HP_Text` & `Potion_Text` di-update setiap tick via polling ke pawn pemain (`Health` component & `PotionCount`). Diinstansiasi dan ditambahkan ke player screen oleh `BP_PlayerController:EventBeginPlay`. |
 | Engine Association | Hasil introspeksi agent | Menggunakan build UE 5.8 (Identifier: `{7A12E277-42D4-CC46-1CCF-31986923C4AF}`). |
 
 ---
@@ -199,3 +207,4 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | 2026-11-20 | Antigravity | Eksekusi task W1-A4: (1) Tambahkan variabel `PoisonOverlapCounter` (int, default 0), `PoisonDamagePerTick` (float, default 2.5), dan `PoisonTickInterval` (float, default 0.5) pada `BP_Player` via CDO. (2) Instansiasi komponen `Health` di `BP_Player:UserConstructionScript` via `AddComponent|Custom|AddHealth` -> `SetHealth`. (3) Buat fungsi `ApplyPoisonTick` via DSL dengan guard `PoisonOverlapCounter > 0` & `IsValid Health` -> `Health->TakeDamage(2.5)` -> `PrintString` info nama aktor & HP. (4) Wiring incremental `EventActorBeginOverlap` & `EventActorEndOverlap` di `BP_Player:EventGraph` (anti-friendly-fire, anti-stacking timer). (5) Perbaiki attachment `BP_PoisonAOE` collision sphere ke root dan `SetGenerateOverlapEvents(true)`. Compile ✁E save ✁E | Task W1-A4 selesai penuh dan terverifikasi di PIE (karakter terkena racun HP berkurang dari 100 secara bertahap 2.5/0.5s, racun sendiri tidak melukai, keluar dari racun menghentikan tick). |
 
 | 2026-11-20 | Antigravity | Eksekusi task W1-B2: (1) Tambah PlayerStart_P2 di level (1000,0,102 Yaw180) dan reposisi PlayerStart_P1 ke (-1000,0,102 Yaw0). Save level OK. (2) Tambah chain incremental EventPossessed -> CastToPlayerController -> GetLocalPlayerControllerID -> SetPlayerIndex pada BP_Player:EventGraph. Guard CreateLocalPlayer < 2 di BP_ThirdPersonGameMode:EventBeginPlay tetap utuh. Compile + save OK. | Task W1-B2 selesai. 2 PlayerStart berjauhan & saling berhadapan; PlayerIndex di-set otomatis (0=P1, 1=P2) saat possess. |
+| 2026-11-20 | Antigravity | Eksekusi task W1-B3: Buat `WBP_PlayerHUD` (CanvasPanel, VBox, HP_Text, Potion_Text), binding variabel ke CDO, tulis EventTick DSL (polling HP dari Health component dan PotionCount dari BP_Player), perbarui `BP_PlayerController:EventGraph` untuk CreateWidget + Add to Player Screen. Compile & save OK. | Task W1-B3 selesai. HUD per pemain aktif dan siap diuji di PIE. |
