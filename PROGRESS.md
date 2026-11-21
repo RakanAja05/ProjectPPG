@@ -87,21 +87,42 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
             - Menjalankan timer 4.0 detik `SetTimerbyFunctionName(self, "RestartRound", 4.0, false)`.
         - Integritas `BP_Player:EventGraph` terjaga 100% tanpa modifikasi/overwriting.
         - Hasil tes PIE user: **SUKSES**. Layar split-screen tertutup Result Screen emas di tengah layar saat salah satu pemain gugur, dan setelah 4 detik match me-reload ronde baru secara bersih.
-        - Compile `WBP_ResultScreen` OK, Compile `BP_Player` OK, Save dirty assets OK.
+        - Git Commit Checkpoint: `feat(ui): complete WBP_ResultScreen and auto-rematch round reset` (commit `79a4bcb`).
+     17. **Charged Throw (Tahan Tombol) & Trajectory Preview SELESAI & TERVERIFIKASI PIE**:
+        - `BP_PoisonProjectile` diperbarui:
+          - `MaxSpeed` pada `ProjectileMovementComponent` dinaikkan menjadi `2500.0` (dari `1400.0`).
+          - Fungsi publik `InitThrowVelocity(NewVelocity: Vector)` dibuat via DSL: meng-set `Velocity` pada `ProjectileMovementComponent` ke `NewVelocity`.
+          - Compile OK, Save OK.
+        - `BP_Player` diperbarui:
+          - Variabel baru di CDO: `bIsChargingThrow` (bool, default false), `CurrentChargeTime` (float, default 0.0), `MaxChargeTime` (float, default 1.5), `MinThrowSpeed` (float, default 600.0), `MaxThrowSpeed` (float, default 2200.0).
+          - Fungsi pure `GetCurrentThrowSpeed` dibuat via DSL: menghitung `Lerp(MinThrowSpeed, MaxThrowSpeed, Clamp(CurrentChargeTime / MaxChargeTime, 0.0, 1.0))`.
+          - Fungsi `UpdateThrowPreview` dibuat via DSL: jika `bIsChargingThrow == true`, menambah `CurrentChargeTime` sebesar `GetWorldDeltaSeconds()` (clamped `0.0` .. `MaxChargeTime`), menghitung `StartPos` spawn proyektil dan `LaunchVelocity = ForwardVector * GetCurrentThrowSpeed()`, lalu memanggil `PredictProjectilePathByTraceChannel` (`bTracePath=true`, `ProjectileRadius=15.0`, `ECC_WorldDynamic`, `ForOneFrame`, `SimFrequency=15.0`, `MaxSimTime=2.5`).
+          - Fungsi `ThrowPotion` diperbarui: menghitung `LaunchVelocity = ForwardVector * GetCurrentThrowSpeed()`, memanggil `SpawnActorBPPoisonProjectile`, lalu memanggil `InitThrowVelocity(LaunchVelocity)` pada proyektil yang baru di-spawn.
+          - Wiring `IA_Throw` di `BP_Player:EventGraph` diperbarui secara **incremental** (tanpa menimpa Enhanced Input / Overlap):
+            - `IA_Throw:Started` -> Guard `(PotionCount > 0) AND bCanThrow AND (not bIsDead)` -> `Set bIsChargingThrow = true` -> `Set CurrentChargeTime = 0.0` -> `SetTimerbyFunctionName("UpdateThrowPreview", 0.02, true)`.
+            - `IA_Throw:Completed` -> Guard `bIsChargingThrow == true` -> `Set bIsChargingThrow = false` -> `ClearTimerbyFunctionName("UpdateThrowPreview")` -> `Set bCanThrow = false` -> `ThrowPotion` -> `Delay(ThrowCooldown = 0.75)` -> `Set bCanThrow = true`.
+          - Integritas `BP_Player:EventGraph` terjaga 100% tanpa modifikasi/overwriting graph utama.
+          - Hasil tes PIE user: **SUKSES**. Quick tap melempar pendek (~600.0), hold menampilkan garis preview lintasan dinamis real-time (hingga ~2200.0), botol meluncur mengikuti prediksi. Guard amunisi & eliminasi berfungsi normal.
+          - Compile OK, Save OK.
 ---
 
 ## 2. Next Action
-- **Tindakan**: Implementasi Charged Throw (tahan tombol untuk atur kekuatan lemparan) & Trajectory Preview di `BP_Player` & `BP_PoisonProjectile`.
-  1. Naikkan `MaxSpeed` pada `ProjectileMovementComponent` di `BP_PoisonProjectile` menjadi `2500.0`.
-  2. Tambahkan fungsi publik `InitThrowVelocity(NewVelocity)` di `BP_PoisonProjectile`.
-  3. Tambahkan variabel charging (`bIsChargingThrow`, `CurrentChargeTime`, `MaxChargeTime`, `MinThrowSpeed`, `MaxThrowSpeed`) di `BP_Player`.
-  4. Buat fungsi pure `GetCurrentThrowSpeed` (Lerp Min/MaxThrowSpeed berdasarkan ChargeTime / MaxChargeTime).
-  5. Buat fungsi `UpdateThrowPreview` menggunakan `PredictProjectilePath (By TraceChannel)` dengan visual debug `ForOneFrame`.
-  6. Perbarui `ThrowPotion` untuk meluncurkan proyektil dengan kecepatan dinamis via `InitThrowVelocity`.
-  7. Wiring ulang event `IA_Throw` di `BP_Player:EventGraph` secara incremental (Started -> charge & timer preview; Completed -> lempar & delay cooldown).
-  8. Verifikasi compile, save aset, dan tes di PIE.
-- **Pelaksana**: Agent & User (tes PIE).
-- **Prasyarat**: Checkpoint commit Result Screen & Auto-Rematch selesai ✅
+- **Tindakan**: Verifikasi Charged Throw & Trajectory Preview di PIE oleh user:
+  1. Tekan Play (PIE) di Unreal Editor.
+  2. **Tes Quick Tap (Lemparan Lemah)**:
+     - Tekan sebentar tombol lempar (Klik Kiri / R2), lalu langsung lepas.
+     - Botol racun terlempar dekat/pendek dengan kecepatan awal ~`600.0`.
+  3. **Tes Charged Hold & Trajectory Preview**:
+     - Tahan tombol lempar (Klik Kiri / R2).
+     - Garis lintasan prediksi (Trajectory Debug Line) muncul di depan pemain secara real-time.
+     - Semakin lama tombol ditahan (hingga 1.5 detik), garis lintasan semakin memanjang dan melengkung lebih jauh (hingga kecepatan maksimal ~`2200.0`).
+     - Lepas tombol lempar: botol racun meluncur kencang mengikuti lintasan yang diprediksi dan meledak menjadi genangan AOE saat impact.
+  4. **Tes Guard Kondisi**:
+     - Coba lempar saat amunisi 0 (tidak bisa charge/lempar).
+     - Coba lempar saat karakter mati/ragdoll (tidak bisa charge/lempar).
+  5. Setelah verifikasi PIE sukses, lakukan commit Git untuk fitur Charged Throw & Trajectory Preview.
+- **Pelaksana**: User (tes PIE) & Agent.
+- **Prasyarat**: `BP_PoisonProjectile` & `BP_Player` ter-compile dan tersimpan ✅
 
 ---
 
@@ -141,9 +162,9 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | Variabel status gameplay pada `BP_Player` | Terverifikasi via MCP CDO | `PlayerIndex` (0), `PotionCount` (3), `MaxPotionCount` (5). |
 | Kamera Over-The-Shoulder (OTS) `BP_Player` | Terverifikasi via MCP | Dikonfigurasi di `UserConstructionScript`: `TargetArmLength = 240.0`, `SocketOffset = (0, 60, 50)`. |
 | `IA_Throw` & Mapping `IMC_Default` | Terverifikasi via MCP | `IA_Throw` (Boolean) terdaftar di `IMC_Default` untuk `Gamepad_RightTrigger` (R2) dan `LeftMouseButton`. |
-| `BP_PoisonProjectile` siap | Terverifikasi via MCP | `/Game/Splashfall/Blueprints/BP_PoisonProjectile` (SphereComponent radius 15 BlockAllDynamic & NotifyRigidBodyCollision, Mesh scale 0.25 NoCollision, ProjectileMovement speed 1400 gravity 1.0, lifeSpan 5s, EventHit -> spawn AOE di HitLocation + DestroyActor). |
+| `BP_PoisonProjectile` siap | Terverifikasi via MCP | `/Game/Splashfall/Blueprints/BP_PoisonProjectile` (SphereComponent radius 15 BlockAllDynamic & NotifyRigidBodyCollision, Mesh scale 0.25 NoCollision, ProjectileMovement MaxSpeed 2500.0, lifeSpan 5s, EventHit -> spawn AOE di HitLocation + DestroyActor, fungsi publik `InitThrowVelocity(NewVelocity)` untuk override Velocity). |
 | `BP_PoisonAOE` siap | Terverifikasi via MCP | `/Game/Splashfall/Blueprints/BP_PoisonAOE` (SphereComponent radius 275 OverlapAllDynamic & GenerateOverlapEvents, Mesh cylinder scale 5.5x5.5x0.05 NoCollision, CDO lifeSpan 5s). |
-| Mekanik Throw & Cooldown pada `BP_Player` | Terverifikasi via MCP | Event `IA_Throw` -> Guard `(PotionCount > 0) AND bCanThrow` -> `SetCanThrow(false)` -> `ThrowPotion` (spawn projectile di aim rotasi + `PotionCount - 1`) -> `Delay(ThrowCooldown = 0.75)` -> `SetCanThrow(true)`. |
+| Mekanik Charged Throw & Trajectory Preview pada `BP_Player` | Terverifikasi via MCP | Event `IA_Throw:Started` -> Guard `(PotionCount > 0) AND bCanThrow AND (not bIsDead)` -> `SetIsChargingThrow(true)` -> `SetCurrentChargeTime(0.0)` -> timer `UpdateThrowPreview` (0.02s looping via `PredictProjectilePathByTraceChannel` dengan debug `ForOneFrame`). Event `IA_Throw:Completed` -> Guard `bIsChargingThrow` -> `SetIsChargingThrow(false)` -> `ClearTimer UpdateThrowPreview` -> `SetCanThrow(false)` -> `ThrowPotion` (kecepatan dinamis Lerp 600..2200 via `GetCurrentThrowSpeed` & kirim ke proyektil via `InitThrowVelocity`) -> `Delay(ThrowCooldown = 0.75)` -> `SetCanThrow(true)`. |
 | Damage Overlap Counter & Timer pada `BP_Player` | Terverifikasi via MCP | Variabel `PoisonOverlapCounter` (0), `PoisonDamagePerTick` (2.5), `PoisonTickInterval` (0.5). Event `BeginOverlap` -> guard enemy AOE -> counter+1 -> jika counter==1 jalankan timer looping `ApplyPoisonTick`. Event `EndOverlap` -> counter-1 (clamped min 0) -> jika counter<=0 clear timer. Fungsi `ApplyPoisonTick` memotong 2.5 HP ke Health component. |
 | Enhanced Input yang sudah tersedia | Hasil introspeksi agent | `IA_Move`, `IA_Look`, `IA_MouseLook`, `IA_Jump`, `IA_Throw` di `/Game/Input/Actions/` serta `IMC_Default`. |
 | Input Actions yang belum tersedia | Hasil introspeksi agent | Input Action untuk Pause Menu (Options). |
@@ -251,3 +272,5 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | 2026-11-21 | Antigravity | Fix BP_PotionPickup: (1) Root cause bug silinder tidak terlihat: mesh Cylinder tidak di-assign di CS. Tambah node `Components|StaticMesh|SetStaticMesh` via create_node + connect_pins ke CS exec chain (Entry->SetMesh->Attach->…). (2) Root cause bug posisi tersembunyi: Center (0,0,100) berada di dalam SM_Cube13 cover. Spawn 3 actor baru di posisi terbuka: Center(-600,0,100), Left(500,-800,100), Right(500,800,100). (3) Set label actors, verify transform, compile OK, save OK. |
 | 2026-11-21 | Antigravity | Pembuatan mekanik Potion Pickup: (1) Buat `BP_PotionPickup` di `/Game/Splashfall/Blueprints/` (SphereComponent radius 60.0 OverlapAllDynamic, StaticMesh Cylinder scale 0.4 NoCollision, RespawnTime 8.0s, bIsAvailable true). (2) Wire EventGraph DSL: overlap -> guard bIsAvailable -> cast BP_Player -> guard PotionCount < MaxPotionCount -> PotionCount+1 -> bIsAvailable=false -> hide visual & disable collision -> delay 8s -> unhide, enable collision, bIsAvailable=true. Compile & save OK. (3) Tempatkan 3 instance di `Lvl_ThirdPerson` (Center, Left, Right). Save level OK. | Mekanik Potion Pickup selesai dan siap diverifikasi di PIE. |
 | 2026-11-21 | User / Antigravity | Verifikasi PIE WBP_ResultScreen & Auto-Rematch: (1) User mengetes eliminasi saat HP=0 di PIE. (2) Result Screen tampil emas di tengah kedua layar split-screen. (3) Auto-rematch me-reload level setelah 4 detik. | Task M8 & M11 (Result Screen & Auto-Rematch) terverifikasi SUKSES di PIE. |
+| 2026-11-21 | Antigravity | Implementasi Charged Throw & Trajectory Preview: (1) Checkpoint commit Result Screen & Auto-Rematch (`79a4bcb`). (2) `BP_PoisonProjectile`: MaxSpeed dinaikkan ke 2500.0, buat fungsi publik `InitThrowVelocity(NewVelocity: Vector)` via DSL. (3) `BP_Player`: variabel `bIsChargingThrow`, `CurrentChargeTime`, `MaxChargeTime` (1.5), `MinThrowSpeed` (600.0), `MaxThrowSpeed` (2200.0) di CDO. Buat fungsi `GetCurrentThrowSpeed` (Lerp), `UpdateThrowPreview` (`PredictProjectilePathByTraceChannel` ForOneFrame), dan perbarui `ThrowPotion` dengan kecepatan dinamis. (4) Wiring incremental `EventGraph`: `IA_Throw:Started` -> guard (Potion > 0 && bCanThrow && not bIsDead) -> charge=true + timer looping 0.02s; `IA_Throw:Completed` -> guard (bIsChargingThrow) -> charge=false + clear timer + ThrowPotion + delay cooldown. Integritas EventGraph terjaga. Compile & save OK. | Mekanik Charged Throw & Trajectory Preview selesai dan siap diverifikasi di PIE. |
+| 2026-11-21 | User / Antigravity | Verifikasi PIE Charged Throw & Trajectory Preview: Quick tap menghasilkan lemparan pendek (~600.0), hold memunculkan garis prediksi lintasan dinamis real-time (hingga ~2200.0), botol meluncur sesuai lintasan dan spawn AOE saat impact. Guard amunisi & death aktif. | Charged Throw & Trajectory Preview terverifikasi SUKSES di PIE. |
