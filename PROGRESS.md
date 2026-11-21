@@ -69,31 +69,39 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
          - `BP_PotionPickup_Left` di `(500, -800, 100)` — sisi kiri arena
          - `BP_PotionPickup_Right` di `(500, 800, 100)` — sisi kanan arena
         - Level disimpan dan terverifikasi di PIE (pickup silinder muncul, bertambah amunisi, dan respawn).
-     15. **Kondisi Eliminasi / Kematian saat HP = 0 (Task M8 Fondasi) SELESAI & SIAP DITES PIE**:
+     15. **Kondisi Eliminasi / Kematian saat HP = 0 (Task M8 Fondasi) SELESAI & TERVERIFIKASI PIE**:
         - Variabel `bIsDead` (Boolean) ditambahkan ke `BP_Player`.
-        - Fungsi `HandleDeath` dibuat di `BP_Player`:
-          - Guard `not bIsDead` -> `SetIsDead(true)` -> `SetCanThrow(false)`.
-          - Menghentikan timer racun via `ClearTimerbyFunctionName(self, "ApplyPoisonTick")`.
-          - Menonaktifkan pergerakan via `CharacterMovement->DisableMovement()`.
-          - Menonaktifkan kontrol input via `PlayerController->DisableInput(self)`.
-          - Mengaktifkan Ragdoll Physics pada Skeletal Mesh: `SetCollisionProfileName("Ragdoll")` + `SetSimulatePhysics(true)`, serta mematikan tabrakan kapsul `CapsuleComponent->SetCollisionProfileName("NoCollision")`.
-          - Mengumumkan pemenang ronde via `PrintString`: Mengidentifikasi `PlayerIndex` yang tereliminasi dan mengumumkan pemain lawan sebagai pemenang ronde.
-        - Fungsi `ApplyPoisonTick` di `BP_Player` diperbarui: Setelah `TakeDamage`, melakukan pengecekan `if (CurrentHealth <= 0.0) -> CallFunction|HandleDeath`.
-        - Blueprint `BP_Player` berhasil di-compile tanpa error (`returnValue: null`) dan disimpan ke disk.
+        - Fungsi `HandleDeath` dibuat di `BP_Player`: guard `not bIsDead` -> set `bIsDead=true`, matikan lempar, matikan timer racun, nonaktifkan movement & input, aktifkan Ragdoll Physics pada Mesh, dan nonaktifkan collision kapsul.
+        - Hasil tes PIE user: **SUKSES**. Karakter tumbang dengan ragdoll realistis, input terkunci, dan eliminasi terdeteksi akurat.
+        - Git Commit Checkpoint: `feat(gameplay): complete potion pickup respawn and player death ragdoll condition` (commit `baeedeb`).
+     16. **Result Screen & Auto-Rematch Loop (Task M8 & M11) SELESAI & SIAP DITES PIE**:
+        - `WBP_ResultScreen` dibuat di `/Game/Splashfall/UI/WBP_ResultScreen` (Parent: `UserWidget`):
+          - Hierarchy: `CanvasPanel_Root` -> `ResultText` (`TextBlock`, font 52 Bold, warna emas outline hitam, centered di Anchor Y=0.4) + `SubText` (`TextBlock`, font 24, "Rematch in 4 seconds...", centered di Anchor Y=0.5).
+          - Fungsi `SetWinnerText(WinnerString: String)`: Mengubah teks `ResultText` secara dinamis via runtime getter.
+        - `BP_Player` diperbarui:
+          - Fungsi `RestartRound`: Memanggil `Game|OpenLevel(byName) "Lvl_ThirdPerson"` untuk restart match bersih.
+          - Fungsi `HandleDeath`:
+            - Membuat widget `WBP_ResultScreen`.
+            - Menetapkan teks pemenang via `SetWinnerText` (`"PLAYER 2 WINS!"` jika P1 gugur, `"PLAYER 1 WINS!"` jika P2 gugur).
+            - Menampilkan ke viewport penuh via `Add to Viewport (ZOrder 10)` (menutupi kedua viewport split-screen).
+            - Menjalankan timer 4.0 detik `SetTimerbyFunctionName(self, "RestartRound", 4.0, false)`.
+        - Integritas `BP_Player:EventGraph` terjaga 100% tanpa modifikasi/overwriting.
+        - Compile `WBP_ResultScreen` OK, Compile `BP_Player` OK, Save dirty assets OK.
 ---
 
 ## 2. Next Action
-- **Tindakan**: Verifikasi kondisi eliminasi HP = 0 di PIE oleh user:
-  1. Lempar proyektil racun ke arah lawan atau biarkan salah satu karakter berdiri di area racun (`BP_PoisonAOE`).
-  2. Amati HP berkurang secara bertahap (100 -> 97.5 -> 95 ... -> 0).
-  3. Saat HP menyentuh `0.0`:
-     - Karakter yang kehabisan HP harus langsung jatuh dengan **Ragdoll Physics**.
-     - Kontrol input karakter mati terkunci (tidak bisa jalan, lompat, atau melempar proyektil).
-     - Timer pengurangan racun berhenti.
-     - Muncul pesan notifikasi pemenang ronde di layar (misal: `=== PLAYER 1 ELIMINATED! PLAYER 2 WINS ROUND! ===`).
-  4. Setelah hasil verifikasi PIE sukses, kita dapat melanjutkan ke sistem ronde & Best-of-3 / reset ronde manual (`W2-B1`).
+- **Tindakan**: Verifikasi Result Screen dan Auto-Rematch di PIE oleh user:
+  1. Tekan Play (PIE) di Unreal Editor.
+  2. Buat salah satu karakter terkena racun sampai HP menyentuh `0.0`.
+  3. **Verifikasi Result Screen**:
+     - Karakter gugur dan jatuh ragdoll.
+     - Layar split-screen tertutup oleh widget `WBP_ResultScreen` di tengah layar dengan tulisan emas besar (misal: `"PLAYER 2 WINS!"`) dan sub-teks `"Rematch in 4 seconds..."`.
+  4. **Verifikasi Auto-Rematch**:
+     - Setelah jeda 4 detik, level otomatis reload (`Lvl_ThirdPerson`).
+     - Kedua karakter kembali berdiri di PlayerStart masing-masing dengan HP 100 dan amunisi 3 potion, siap untuk ronde baru.
+  5. Setelah hasil verifikasi PIE sukses, kita siap melakukan commit Result Screen dan lanjut ke `W1-B4` (`DA_Tuning`) atau implementasi Best-of-3 Match Manager.
 - **Pelaksana**: User (tes PIE) & Agent.
-- **Prasyarat**: `BP_Player` HandleDeath & ApplyPoisonTick siap ter-compile ✅
+- **Prasyarat**: `WBP_ResultScreen` & `BP_Player` ter-compile dan tersimpan ✅
 
 ---
 
@@ -238,6 +246,7 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | 2026-11-20 | Antigravity | Eksekusi task W1-B2: (1) Tambah PlayerStart_P2 di level (1000,0,102 Yaw180) dan reposisi PlayerStart_P1 ke (-1000,0,102 Yaw0). Save level OK. (2) Tambah chain incremental EventPossessed -> CastToPlayerController -> GetLocalPlayerControllerID -> SetPlayerIndex pada BP_Player:EventGraph. Guard CreateLocalPlayer < 2 di BP_ThirdPersonGameMode:EventBeginPlay tetap utuh. Compile + save OK. | Task W1-B2 selesai. 2 PlayerStart berjauhan & saling berhadapan; PlayerIndex di-set otomatis (0=P1, 1=P2) saat possess. |
 | 2026-11-20 | Antigravity | Eksekusi task W1-B3: Buat `WBP_PlayerHUD` (CanvasPanel, VBox, HP_Text, Potion_Text), binding variabel ke CDO, tulis EventTick DSL (polling HP dari Health component dan PotionCount dari BP_Player), perbarui `BP_PlayerController:EventGraph` untuk CreateWidget + Add to Player Screen. Compile & save OK. | Task W1-B3 selesai. HUD per pemain aktif dan siap diuji di PIE. |
 | 2026-11-20 | Antigravity | Perbaikan binding runtime `WBP_PlayerHUD`: gunakan UMG generated getter `Variables|WBP_PlayerHUD|GetHP_Text` dan `GetPotion_Text` di `EventTick` menggantikan template CDO archetype. Hasil tes PIE user: SUKSES (HP dan Potion update real-time di layar split-screen). | Task W1-B3 terverifikasi penuh di PIE. |
+| 2026-11-21 | Antigravity | Eksekusi Result Screen & Auto-Rematch (Task M8 & M11): (1) Buat `WBP_ResultScreen` di `/Game/Splashfall/UI/` dengan `CanvasPanel_Root` -> `ResultText` (font 52 Bold emas) + `SubText` (font 24 putih) di tengah layar. (2) Buat fungsi `SetWinnerText(WinnerString: String)` pada `WBP_ResultScreen`. (3) Buat fungsi `RestartRound` di `BP_Player` (`OpenLevel Lvl_ThirdPerson`). (4) Di `BP_Player:HandleDeath`: spawn `WBP_ResultScreen`, kirim nama pemenang via `SetWinnerText`, `Add to Viewport (ZOrder 10)`, dan pasang timer 4.0s panggil `RestartRound`. EventGraph BP_Player utuh. Compile & save OK. |
 | 2026-11-21 | Antigravity | Implementasi Kondisi HP = 0 / Death (Task M8): (1) Tambah variabel `bIsDead` pada `BP_Player`. (2) Buat fungsi `HandleDeath`: guard `not bIsDead` -> `bIsDead=true`, `bCanThrow=false`, `ClearTimer ApplyPoisonTick`, `DisableMovement`, `DisableInput`, aktifkan Ragdoll (`SetCollisionProfileName("Ragdoll")` + `SetSimulatePhysics(true)` pada Mesh & `NoCollision` pada Capsule), tampilkan notifikasi pemenang ronde. (3) Hubungkan `ApplyPoisonTick`: jika HP <= 0.0 -> panggil `HandleDeath`. Compile OK, save OK. |
 | 2026-11-21 | Antigravity | Fix BP_PotionPickup: (1) Root cause bug silinder tidak terlihat: mesh Cylinder tidak di-assign di CS. Tambah node `Components|StaticMesh|SetStaticMesh` via create_node + connect_pins ke CS exec chain (Entry->SetMesh->Attach->…). (2) Root cause bug posisi tersembunyi: Center (0,0,100) berada di dalam SM_Cube13 cover. Spawn 3 actor baru di posisi terbuka: Center(-600,0,100), Left(500,-800,100), Right(500,800,100). (3) Set label actors, verify transform, compile OK, save OK. |
 | 2026-11-21 | Antigravity | Pembuatan mekanik Potion Pickup: (1) Buat `BP_PotionPickup` di `/Game/Splashfall/Blueprints/` (SphereComponent radius 60.0 OverlapAllDynamic, StaticMesh Cylinder scale 0.4 NoCollision, RespawnTime 8.0s, bIsAvailable true). (2) Wire EventGraph DSL: overlap -> guard bIsAvailable -> cast BP_Player -> guard PotionCount < MaxPotionCount -> PotionCount+1 -> bIsAvailable=false -> hide visual & disable collision -> delay 8s -> unhide, enable collision, bIsAvailable=true. Compile & save OK. (3) Tempatkan 3 instance di `Lvl_ThirdPerson` (Center, Left, Right). Save level OK. | Mekanik Potion Pickup selesai dan siap diverifikasi di PIE. |
