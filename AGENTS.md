@@ -120,7 +120,8 @@ Nama di tabel atas adalah nama rencana. Jika project sudah punya asset dengan pe
 | HP / damage | `/Game/Components/Health` | Komponen ActorComponent existing. Diputuskan untuk **dipakai dan diperbaiki** pada task W1-A1/W1-A4 (hapus `GetActorOfClass(HUDClass)` di BeginPlay, perbaiki bug `GainHealth`, set default HP 100, lalu pasang ke `BP_Player`). |
 | `BP_PlayerController` | `/Game/Characters/BP_PlayerController` | Direferensikan oleh `BP_ThirdPersonGameMode` aktif. Perlu disesuaikan untuk input local player / HUD. Kandidat di ThirdPerson ditinggalkan. |
 | `BP_PotionPickup` | `/Game/Splashfall/Blueprints/BP_PotionPickup` | Dibuat via unreal-mcp. Aktor pickup amunisi: SphereComponent (radius 60.0, OverlapAllDynamic), StaticMeshComponent (Cylinder, scale 0.4), variabel RespawnTime (8.0s), bIsAvailable (true). Overlap -> validasi player & PotionCount < MaxPotionCount -> +1 potion, hide, disable collision, delay respawn. Terpasang 3 instance di Lvl_ThirdPerson (Center, Left, Right). |
-| `WBP_ResultScreen` | `/Game/Splashfall/UI/WBP_ResultScreen` | Dibuat via unreal-mcp. Widget result screen fullscreen: CanvasPanel_Root -> ResultText (emas 52pt) + SubText (putih 24pt), fungsi SetWinnerText(WinnerString), auto-rematch 4s via OpenLevel Lvl_ThirdPerson. |
+| `WBP_ResultScreen` | `/Game/Splashfall/UI/WBP_ResultScreen` | Dibuat via unreal-mcp. Widget result screen per-player via AddToPlayerScreen: CanvasPanel_Root -> ResultText (emas 52pt untuk VICTORY, merah 52pt untuk DEFEAT) + SubText (putih 24pt), fungsi SetWinnerText(WinnerString), auto-rematch 4s via OpenLevel Lvl_ThirdPerson. |
+| Material Instances | `/Game/Splashfall/Materials/` | Dibuat via unreal-mcp (`MI_Poison_P1`, `MI_Poison_P2`, `MI_PotionPickup`). Parent: `M_FlatCol`. `MI_Poison_P1` hijau terang (P1), `MI_Poison_P2` ungu neon (P2), `MI_PotionPickup` biru cyan (pickup amunisi). |
 | Lainnya | `/Game/UI/HUDClass`, `/Game/Input/IMC_Default`, `/Game/ThirdPerson/Lvl_ThirdPerson` | Input Actions (`IA_Move`, `IA_Look`, `IA_Jump`), Mannequin animations lengkap (termasuk anim Death/HitReact di `/Game/Characters/Mannequins/`), LevelPrototyping meshes & interactables. |
 
 Task di §6 yang sebagian sudah terpenuhi oleh asset existing: tambahkan catatan di baris task tersebut. Centang `[x]` hanya setelah diverifikasi.
@@ -151,7 +152,7 @@ Peran: **A** = Gameplay Programmer, **B** = Match/Input/UI Programmer, **C** = L
 **Gate Kamis 3 Des = FEATURE FREEZE:** dari Main Menu sampai Result + Rematch tanpa crash; semua Must selesai.
 
 - [ ] W2-A1 AOE contest: AOE baru menghapus AOE lawan yang overlap (replace penuh).
-- [ ] W2-A2 Warna owner (hijau P1 / ungu P2) via material parameter; AOE habis setelah durasi; counter dikurangi saat AOE hancur.
+- [x] W2-A2 Warna owner (hijau P1 / ungu P2) via material parameter; AOE habis setelah durasi; counter dikurangi saat AOE hancur. *(MI_Poison_P1 hijau racun terang & MI_Poison_P2 ungu neon terang dipasang dinamis di BP_PoisonAOE berdasarkan PlayerIndex; MI_PotionPickup cyan di BP_PotionPickup; debug log layar bersih; terverifikasi di PIE)*
 - [ ] W2-A3 `BP_PotionPickup` + spawner: pilih titik bebas secara acak dari 5 titik, interval 12 s, +1 potion, tidak bisa diambil saat 5/5. *(BP_PotionPickup selesai dibuat dengan respawn time 8s, validasi cap 5/5, +1 potion, hide/disable collision, 3 pickup terpasang di level. Spawner acak 5 titik menyusul)*
 - [ ] W2-B1 `BP_MatchManager`: timer 120 s, menang saat HP 0, timeout → HP lebih tinggi, seri → ulang ronde, Best-of-3, jeda 3 s, round reset manual.
 - [ ] W2-B2 `WBP_SharedHUD` (timer + skor ronde) dan pesan "Ronde N" / pemenang.

@@ -104,25 +104,43 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
           - Integritas `BP_Player:EventGraph` terjaga 100% tanpa modifikasi/overwriting graph utama.
           - Hasil tes PIE user: **SUKSES**. Quick tap melempar pendek (~600.0), hold menampilkan garis preview lintasan dinamis real-time (hingga ~2200.0), botol meluncur mengikuti prediksi. Guard amunisi & eliminasi berfungsi normal.
           - Compile OK, Save OK.
+     18. **Task W2-A2 SELESAI & TERVERIFIKASI PIE (Visual Warna Owner AOE Hijau P1 / Ungu P2, Warna Pickup Cyan, & Pembersihan Debug Print)**:
+        - Material Instances dibuat di `/Game/Splashfall/Materials/` (Parent: `/Game/LevelPrototyping/Materials/M_FlatCol`):
+          - `MI_Poison_P1`: Vector Parameter `Base Color` = Hijau racun terang `(R=0.05, G=1.0, B=0.1, A=1.0)` untuk P1 (`PlayerIndex == 0`).
+          - `MI_Poison_P2`: Vector Parameter `Base Color` = Ungu neon terang `(R=0.8, G=0.05, B=1.0, A=1.0)` untuk P2 (`PlayerIndex == 1`).
+          - `MI_PotionPickup`: Vector Parameter `Base Color` = Biru cyan terang `(R=0.0, G=0.8, B=1.0, A=1.0)` untuk amunisi potion pickup.
+        - `/Game/Splashfall/Blueprints/BP_PoisonAOE`:
+          - `EventBeginPlay` diperbarui via DSL: membaca `GetOwner` -> Cast ke `BP_Player` -> baca `PlayerIndex`. Jika `PlayerIndex == 0`, memasang `MI_Poison_P1` ke `AOEMesh`; jika `PlayerIndex != 0`, memasang `MI_Poison_P2` ke `AOEMesh`.
+        - `/Game/Splashfall/Blueprints/BP_PotionPickup`:
+          - `UserConstructionScript` diperbarui via DSL: memanggil `SetMaterial(PickupMesh, 0, MI_PotionPickup)` sehingga mesh pickup silinder berwarna biru cyan terang.
+        - `/Game/Characters/BP_Player`:
+          - Pembersihan debug: Menghapus pemanggilan `PrintString` pada fungsi grafik `BP_Player:ApplyPoisonTick` sehingga layar split-screen bersih dari spam teks HP saat terkena racun (`BP_Player:EventGraph` tetap utuh 100%).
+        - Hasil tes PIE user: **SUKSES**. Warna AOE hijau untuk P1, ungu untuk P2, pickup biru cyan mencolok, dan layar bersih tanpa spam print debug.
+        - Seluruh Blueprint ter-compile tanpa error (`BP_PoisonAOE`, `BP_PotionPickup`, `BP_Player`) dan tersimpan bersih ke disk.
+     19. **Kustomisasi Result Screen: VICTORY untuk Pemenang & DEFEAT untuk yang Kalah (Task M8 & M11 Polish) SELESAI & TERVERIFIKASI PIE**:
+        - `/Game/Splashfall/UI/WBP_ResultScreen`:
+          - Fungsi `SetWinnerText(WinnerString: String)` diperbarui via DSL:
+            - Jika `WinnerString == "VICTORY"`: meng-set teks menjadi `"VICTORY"` dan warna teks menjadi emas terang `(R=1.0, G=0.84, B=0.0)`.
+            - Jika `WinnerString == "DEFEAT"` (atau lainnya): meng-set teks menjadi `"DEFEAT"` dan warna teks menjadi merah tua `(R=0.9, G=0.15, B=0.15)`.
+        - `/Game/Characters/BP_Player`:
+          - Fungsi `HandleDeath` diperbarui via DSL:
+            - Membuat 2 widget `WBP_ResultScreen` mandiri untuk masing-masing PlayerController: `PC0` (Player 1) dan `PC1` (Player 2).
+            - Cek `PlayerIndex` dari karakter yang gugur (`_self`):
+              - Jika `PlayerIndex == 0` (P1 kalah): widget P0 diberi `"DEFEAT"` dan widget P1 diberi `"VICTORY"`.
+              - Jika `PlayerIndex == 1` (P2 kalah): widget P0 diberi `"VICTORY"` dan widget P1 diberi `"DEFEAT"`.
+            - Menampilkan masing-masing widget ke layar pemainnya via `AddToPlayerScreen(widget, 10)` (bukan global viewport), sehingga tepat di tengah viewport masing-masing split-screen.
+          - Integritas `BP_Player:EventGraph` tetap terjaga 100%.
+        - Hasil tes PIE user: **SUKSES**. Status kemenangan akurat di masing-masing layar split-screen (pemenang melihat VICTORY emas, pecundang melihat DEFEAT merah).
+        - Compile OK, Save OK.
 ---
 
 ## 2. Next Action
-- **Tindakan**: Verifikasi Charged Throw & Trajectory Preview di PIE oleh user:
-  1. Tekan Play (PIE) di Unreal Editor.
-  2. **Tes Quick Tap (Lemparan Lemah)**:
-     - Tekan sebentar tombol lempar (Klik Kiri / R2), lalu langsung lepas.
-     - Botol racun terlempar dekat/pendek dengan kecepatan awal ~`600.0`.
-  3. **Tes Charged Hold & Trajectory Preview**:
-     - Tahan tombol lempar (Klik Kiri / R2).
-     - Garis lintasan prediksi (Trajectory Debug Line) muncul di depan pemain secara real-time.
-     - Semakin lama tombol ditahan (hingga 1.5 detik), garis lintasan semakin memanjang dan melengkung lebih jauh (hingga kecepatan maksimal ~`2200.0`).
-     - Lepas tombol lempar: botol racun meluncur kencang mengikuti lintasan yang diprediksi dan meledak menjadi genangan AOE saat impact.
-  4. **Tes Guard Kondisi**:
-     - Coba lempar saat amunisi 0 (tidak bisa charge/lempar).
-     - Coba lempar saat karakter mati/ragdoll (tidak bisa charge/lempar).
-  5. Setelah verifikasi PIE sukses, lakukan commit Git untuk fitur Charged Throw & Trajectory Preview.
-- **Pelaksana**: User (tes PIE) & Agent.
-- **Prasyarat**: `BP_PoisonProjectile` & `BP_Player` ter-compile dan tersimpan ✅
+- **Tindakan**: Konfirmasi prioritas pengerjaan task berikutnya dengan tim/user:
+  - **Opsi 1 (Gameplay - W2-A1)**: Implementasi *AOE Contest* (genangan AOE baru menghapus penuh AOE lawan yang saling overlap).
+  - **Opsi 2 (Match Loop - W2-B1)**: Implementasi `BP_MatchManager` (Best-of-3, ronde timer 120s, jeda 3s, pelacak skor).
+  - **Opsi 3 (Balancing - W1-B4)**: Pembuatan Data Asset `DA_Tuning` untuk mengunci seluruh konstanta gameplay §4.
+- **Pelaksana**: Agent & User.
+- **Prasyarat**: Checkpoint Git W2-A2 & Polish Layar Hasil ter-commit ✅
 
 ---
 
@@ -171,6 +189,9 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | Animasi Mannequin lengkap | Hasil introspeksi agent | Tersedia di `/Game/Characters/Mannequins/Anims/` termasuk Jump, Jog, Walk, Death, dan HitReact. |
 | `WBP_PlayerHUD` siap via Add to Player Screen | Terverifikasi via MCP | Berada di `/Game/Splashfall/UI/WBP_PlayerHUD`. TextBlock `HP_Text` & `Potion_Text` di-update setiap tick via polling ke pawn pemain (`Health` component & `PotionCount`). Diinstansiasi dan ditambahkan ke player screen oleh `BP_PlayerController:EventBeginPlay`. |
 | `BP_PotionPickup` siap & terpasang di level | Terverifikasi via MCP | Berada di `/Game/Splashfall/Blueprints/BP_PotionPickup`. SphereComponent (radius 60.0), Mesh Cylinder (scale 0.4), variabel RespawnTime (8.0s), bIsAvailable (true). Overlap -> validasi player & PotionCount < MaxPotionCount -> +1 potion, hide, disable collision, delay respawn. 3 instance terpasang di Lvl_ThirdPerson (Center, Left, Right). |
+| Material Instances warna racun & pickup | Terverifikasi via MCP | Berada di `/Game/Splashfall/Materials/`: `MI_Poison_P1` (hijau terang R=0.05 G=1.0 B=0.1), `MI_Poison_P2` (ungu neon R=0.8 G=0.05 B=1.0), `MI_PotionPickup` (biru cyan R=0.0 G=0.8 B=1.0). Meng-override parameter Vector `Base Color` dari parent `M_FlatCol`. |
+| Pewarnaan dinamis AOE berdasarkan PlayerIndex | Terverifikasi via MCP | `BP_PoisonAOE:EventBeginPlay` mengecek `GetOwner` -> `CastToBP_Player` -> `GetPlayerIndex`. Jika 0 pasang `MI_Poison_P1` (hijau), jika != 0 pasang `MI_Poison_P2` (ungu) ke `AOEMesh`. |
+| Debug PrintString ApplyPoisonTick dibersihkan | Terverifikasi via MCP | Fungsi `BP_Player:ApplyPoisonTick` bersih tanpa node `PrintString`. Layar split-screen tidak lagi terdistraksi spam teks HP saat duel. |
 | Engine Association | Hasil introspeksi agent | Menggunakan build UE 5.8 (Identifier: `{7A12E277-42D4-CC46-1CCF-31986923C4AF}`). |
 
 ---
@@ -274,3 +295,5 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | 2026-11-21 | User / Antigravity | Verifikasi PIE WBP_ResultScreen & Auto-Rematch: (1) User mengetes eliminasi saat HP=0 di PIE. (2) Result Screen tampil emas di tengah kedua layar split-screen. (3) Auto-rematch me-reload level setelah 4 detik. | Task M8 & M11 (Result Screen & Auto-Rematch) terverifikasi SUKSES di PIE. |
 | 2026-11-21 | Antigravity | Implementasi Charged Throw & Trajectory Preview: (1) Checkpoint commit Result Screen & Auto-Rematch (`79a4bcb`). (2) `BP_PoisonProjectile`: MaxSpeed dinaikkan ke 2500.0, buat fungsi publik `InitThrowVelocity(NewVelocity: Vector)` via DSL. (3) `BP_Player`: variabel `bIsChargingThrow`, `CurrentChargeTime`, `MaxChargeTime` (1.5), `MinThrowSpeed` (600.0), `MaxThrowSpeed` (2200.0) di CDO. Buat fungsi `GetCurrentThrowSpeed` (Lerp), `UpdateThrowPreview` (`PredictProjectilePathByTraceChannel` ForOneFrame), dan perbarui `ThrowPotion` dengan kecepatan dinamis. (4) Wiring incremental `EventGraph`: `IA_Throw:Started` -> guard (Potion > 0 && bCanThrow && not bIsDead) -> charge=true + timer looping 0.02s; `IA_Throw:Completed` -> guard (bIsChargingThrow) -> charge=false + clear timer + ThrowPotion + delay cooldown. Integritas EventGraph terjaga. Compile & save OK. | Mekanik Charged Throw & Trajectory Preview selesai dan siap diverifikasi di PIE. |
 | 2026-11-21 | User / Antigravity | Verifikasi PIE Charged Throw & Trajectory Preview: Quick tap menghasilkan lemparan pendek (~600.0), hold memunculkan garis prediksi lintasan dinamis real-time (hingga ~2200.0), botol meluncur sesuai lintasan dan spawn AOE saat impact. Guard amunisi & death aktif. | Charged Throw & Trajectory Preview terverifikasi SUKSES di PIE. |
+| 2026-11-21 | Antigravity | Eksekusi task W2-A2: (1) Buat Material Instances `MI_Poison_P1` (hijau racun terang), `MI_Poison_P2` (ungu neon), dan `MI_PotionPickup` (biru cyan) di `/Game/Splashfall/Materials/` via `MaterialInstanceTools.create` & `set_vector_parameter`. (2) Update `BP_PoisonAOE:EventGraph`: EventBeginPlay pasang material P1/P2 dinamis ke AOEMesh berdasarkan `PlayerIndex` pemilik (`GetOwner -> CastToBP_Player -> GetPlayerIndex`). (3) Update `BP_PotionPickup:UserConstructionScript`: pasang `MI_PotionPickup` ke `PickupMesh`. (4) Bersihkan node `PrintString` di `BP_Player:ApplyPoisonTick`. Integritas `BP_Player:EventGraph` terjaga utuh. Compile & save seluruh aset OK. | Task W2-A2 selesai, seluruh Blueprint ter-compile tanpa error dan siap dites di PIE. |
+| 2026-11-21 | User / Antigravity | Verifikasi PIE W2-A2 & Polish Layar Hasil: (1) Tes visual AOE hijau P1 dan ungu P2 serta pickup cyan terverifikasi berjalan sesuai. (2) Update `WBP_ResultScreen:SetWinnerText`: styling teks otomatis ("VICTORY" = emas, "DEFEAT" = merah tua via `MakeSlateColor`). (3) Update `BP_Player:HandleDeath`: spawn widget mandiri per player controller (`PC0` & `PC1`), tentukan status pemenang/pecundang berdasarkan `PlayerIndex` karakter yang gugur, dan tampilkan ke layar masing-masing via `AddToPlayerScreen`. Integritas `BP_Player:EventGraph` terjaga. Compile & save OK. | Tampilan hasil disesuaikan: pemain menang mendapat "VICTORY" emas, pemain kalah mendapat "DEFEAT" merah di layar masing-masing. Siap diverifikasi di PIE. |
