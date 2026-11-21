@@ -74,7 +74,7 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
         - Fungsi `HandleDeath` dibuat di `BP_Player`: guard `not bIsDead` -> set `bIsDead=true`, matikan lempar, matikan timer racun, nonaktifkan movement & input, aktifkan Ragdoll Physics pada Mesh, dan nonaktifkan collision kapsul.
         - Hasil tes PIE user: **SUKSES**. Karakter tumbang dengan ragdoll realistis, input terkunci, dan eliminasi terdeteksi akurat.
         - Git Commit Checkpoint: `feat(gameplay): complete potion pickup respawn and player death ragdoll condition` (commit `baeedeb`).
-     16. **Result Screen & Auto-Rematch Loop (Task M8 & M11) SELESAI & SIAP DITES PIE**:
+     16. **Result Screen & Auto-Rematch Loop (Task M8 & M11) SELESAI & TERVERIFIKASI PIE**:
         - `WBP_ResultScreen` dibuat di `/Game/Splashfall/UI/WBP_ResultScreen` (Parent: `UserWidget`):
           - Hierarchy: `CanvasPanel_Root` -> `ResultText` (`TextBlock`, font 52 Bold, warna emas outline hitam, centered di Anchor Y=0.4) + `SubText` (`TextBlock`, font 24, "Rematch in 4 seconds...", centered di Anchor Y=0.5).
           - Fungsi `SetWinnerText(WinnerString: String)`: Mengubah teks `ResultText` secara dinamis via runtime getter.
@@ -86,22 +86,22 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
             - Menampilkan ke viewport penuh via `Add to Viewport (ZOrder 10)` (menutupi kedua viewport split-screen).
             - Menjalankan timer 4.0 detik `SetTimerbyFunctionName(self, "RestartRound", 4.0, false)`.
         - Integritas `BP_Player:EventGraph` terjaga 100% tanpa modifikasi/overwriting.
+        - Hasil tes PIE user: **SUKSES**. Layar split-screen tertutup Result Screen emas di tengah layar saat salah satu pemain gugur, dan setelah 4 detik match me-reload ronde baru secara bersih.
         - Compile `WBP_ResultScreen` OK, Compile `BP_Player` OK, Save dirty assets OK.
 ---
 
 ## 2. Next Action
-- **Tindakan**: Verifikasi Result Screen dan Auto-Rematch di PIE oleh user:
-  1. Tekan Play (PIE) di Unreal Editor.
-  2. Buat salah satu karakter terkena racun sampai HP menyentuh `0.0`.
-  3. **Verifikasi Result Screen**:
-     - Karakter gugur dan jatuh ragdoll.
-     - Layar split-screen tertutup oleh widget `WBP_ResultScreen` di tengah layar dengan tulisan emas besar (misal: `"PLAYER 2 WINS!"`) dan sub-teks `"Rematch in 4 seconds..."`.
-  4. **Verifikasi Auto-Rematch**:
-     - Setelah jeda 4 detik, level otomatis reload (`Lvl_ThirdPerson`).
-     - Kedua karakter kembali berdiri di PlayerStart masing-masing dengan HP 100 dan amunisi 3 potion, siap untuk ronde baru.
-  5. Setelah hasil verifikasi PIE sukses, kita siap melakukan commit Result Screen dan lanjut ke `W1-B4` (`DA_Tuning`) atau implementasi Best-of-3 Match Manager.
-- **Pelaksana**: User (tes PIE) & Agent.
-- **Prasyarat**: `WBP_ResultScreen` & `BP_Player` ter-compile dan tersimpan ✅
+- **Tindakan**: Implementasi Charged Throw (tahan tombol untuk atur kekuatan lemparan) & Trajectory Preview di `BP_Player` & `BP_PoisonProjectile`.
+  1. Naikkan `MaxSpeed` pada `ProjectileMovementComponent` di `BP_PoisonProjectile` menjadi `2500.0`.
+  2. Tambahkan fungsi publik `InitThrowVelocity(NewVelocity)` di `BP_PoisonProjectile`.
+  3. Tambahkan variabel charging (`bIsChargingThrow`, `CurrentChargeTime`, `MaxChargeTime`, `MinThrowSpeed`, `MaxThrowSpeed`) di `BP_Player`.
+  4. Buat fungsi pure `GetCurrentThrowSpeed` (Lerp Min/MaxThrowSpeed berdasarkan ChargeTime / MaxChargeTime).
+  5. Buat fungsi `UpdateThrowPreview` menggunakan `PredictProjectilePath (By TraceChannel)` dengan visual debug `ForOneFrame`.
+  6. Perbarui `ThrowPotion` untuk meluncurkan proyektil dengan kecepatan dinamis via `InitThrowVelocity`.
+  7. Wiring ulang event `IA_Throw` di `BP_Player:EventGraph` secara incremental (Started -> charge & timer preview; Completed -> lempar & delay cooldown).
+  8. Verifikasi compile, save aset, dan tes di PIE.
+- **Pelaksana**: Agent & User (tes PIE).
+- **Prasyarat**: Checkpoint commit Result Screen & Auto-Rematch selesai ✅
 
 ---
 
@@ -250,3 +250,4 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | 2026-11-21 | Antigravity | Implementasi Kondisi HP = 0 / Death (Task M8): (1) Tambah variabel `bIsDead` pada `BP_Player`. (2) Buat fungsi `HandleDeath`: guard `not bIsDead` -> `bIsDead=true`, `bCanThrow=false`, `ClearTimer ApplyPoisonTick`, `DisableMovement`, `DisableInput`, aktifkan Ragdoll (`SetCollisionProfileName("Ragdoll")` + `SetSimulatePhysics(true)` pada Mesh & `NoCollision` pada Capsule), tampilkan notifikasi pemenang ronde. (3) Hubungkan `ApplyPoisonTick`: jika HP <= 0.0 -> panggil `HandleDeath`. Compile OK, save OK. |
 | 2026-11-21 | Antigravity | Fix BP_PotionPickup: (1) Root cause bug silinder tidak terlihat: mesh Cylinder tidak di-assign di CS. Tambah node `Components|StaticMesh|SetStaticMesh` via create_node + connect_pins ke CS exec chain (Entry->SetMesh->Attach->…). (2) Root cause bug posisi tersembunyi: Center (0,0,100) berada di dalam SM_Cube13 cover. Spawn 3 actor baru di posisi terbuka: Center(-600,0,100), Left(500,-800,100), Right(500,800,100). (3) Set label actors, verify transform, compile OK, save OK. |
 | 2026-11-21 | Antigravity | Pembuatan mekanik Potion Pickup: (1) Buat `BP_PotionPickup` di `/Game/Splashfall/Blueprints/` (SphereComponent radius 60.0 OverlapAllDynamic, StaticMesh Cylinder scale 0.4 NoCollision, RespawnTime 8.0s, bIsAvailable true). (2) Wire EventGraph DSL: overlap -> guard bIsAvailable -> cast BP_Player -> guard PotionCount < MaxPotionCount -> PotionCount+1 -> bIsAvailable=false -> hide visual & disable collision -> delay 8s -> unhide, enable collision, bIsAvailable=true. Compile & save OK. (3) Tempatkan 3 instance di `Lvl_ThirdPerson` (Center, Left, Right). Save level OK. | Mekanik Potion Pickup selesai dan siap diverifikasi di PIE. |
+| 2026-11-21 | User / Antigravity | Verifikasi PIE WBP_ResultScreen & Auto-Rematch: (1) User mengetes eliminasi saat HP=0 di PIE. (2) Result Screen tampil emas di tengah kedua layar split-screen. (3) Auto-rematch me-reload level setelah 4 detik. | Task M8 & M11 (Result Screen & Auto-Rematch) terverifikasi SUKSES di PIE. |
