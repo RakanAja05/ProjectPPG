@@ -119,6 +119,7 @@ Nama di tabel atas adalah nama rencana. Jika project sudah punya asset dengan pe
 | `BP_GameInstance` | `/Game/Splashfall/Blueprints/BP_GameInstance` | Dibuat via unreal-mcp. EventGraph **kosong**. Fungsi publik `EnsureSecondLocalPlayer` tersedia (guard `GetNumLocalPlayerControllers < 2` → `CreateLocalPlayer(-1, true)`). GameInstance di-set permanen di `Config/DefaultEngine.ini` (`GameInstanceClass=...BP_GameInstance_C`). |
 | HP / damage | `/Game/Components/Health` | Komponen ActorComponent existing. Diputuskan untuk **dipakai dan diperbaiki** pada task W1-A1/W1-A4 (hapus `GetActorOfClass(HUDClass)` di BeginPlay, perbaiki bug `GainHealth`, set default HP 100, lalu pasang ke `BP_Player`). |
 | `BP_PlayerController` | `/Game/Characters/BP_PlayerController` | Direferensikan oleh `BP_ThirdPersonGameMode` aktif. Perlu disesuaikan untuk input local player / HUD. Kandidat di ThirdPerson ditinggalkan. |
+| `BP_PotionPickup` | `/Game/Splashfall/Blueprints/BP_PotionPickup` | Dibuat via unreal-mcp. Aktor pickup amunisi: SphereComponent (radius 60.0, OverlapAllDynamic), StaticMeshComponent (Cylinder, scale 0.4), variabel RespawnTime (8.0s), bIsAvailable (true). Overlap -> validasi player & PotionCount < MaxPotionCount -> +1 potion, hide, disable collision, delay respawn. Terpasang 3 instance di Lvl_ThirdPerson (Center, Left, Right). |
 | Lainnya | `/Game/UI/HUDClass`, `/Game/Input/IMC_Default`, `/Game/ThirdPerson/Lvl_ThirdPerson` | Input Actions (`IA_Move`, `IA_Look`, `IA_Jump`), Mannequin animations lengkap (termasuk anim Death/HitReact di `/Game/Characters/Mannequins/`), LevelPrototyping meshes & interactables. |
 
 Task di §6 yang sebagian sudah terpenuhi oleh asset existing: tambahkan catatan di baris task tersebut. Centang `[x]` hanya setelah diverifikasi.
@@ -150,7 +151,7 @@ Peran: **A** = Gameplay Programmer, **B** = Match/Input/UI Programmer, **C** = L
 
 - [ ] W2-A1 AOE contest: AOE baru menghapus AOE lawan yang overlap (replace penuh).
 - [ ] W2-A2 Warna owner (hijau P1 / ungu P2) via material parameter; AOE habis setelah durasi; counter dikurangi saat AOE hancur.
-- [ ] W2-A3 `BP_PotionPickup` + spawner: pilih titik bebas secara acak dari 5 titik, interval 12 s, +1 potion, tidak bisa diambil saat 5/5.
+- [ ] W2-A3 `BP_PotionPickup` + spawner: pilih titik bebas secara acak dari 5 titik, interval 12 s, +1 potion, tidak bisa diambil saat 5/5. *(BP_PotionPickup selesai dibuat dengan respawn time 8s, validasi cap 5/5, +1 potion, hide/disable collision, 3 pickup terpasang di level. Spawner acak 5 titik menyusul)*
 - [ ] W2-B1 `BP_MatchManager`: timer 120 s, menang saat HP 0, timeout → HP lebih tinggi, seri → ulang ronde, Best-of-3, jeda 3 s, round reset manual.
 - [ ] W2-B2 `WBP_SharedHUD` (timer + skor ronde) dan pesan "Ronde N" / pemenang.
 - [ ] W2-B3 `WBP_MainMenu` (Play, Quit), `WBP_Result` (pemenang, skor, Rematch, Main Menu), `WBP_Pause` (Resume, Main Menu); navigasi gamepad dengan fokus eksplisit.
