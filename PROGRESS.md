@@ -7,9 +7,9 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 
 ## 1. Posisi Sekarang
 - **Tanggal Update**: 27 November 2026
-- **Tahap**: Minggu 2 — *Full Match Loop + Feature Freeze* (transisi dari Duel Prototype)
+- **Tahap**: Langkah 3 — *HUD Pemain, Sustain Amunisi, Contest & Data Balancing* (Langkah 1 & Langkah 2 selesai penuh)
 - **Ringkasan**:
-  1. Dokumen perencanaan 3 minggu telah dibuat dan dikunci di `AGENTS.md` dengan scope couch 1v1 local split-screen (2 gamepad).
+  1. Dokumen perencanaan berbasis langkah (*step-by-step*, Langkah 1–8) telah dikunci di `AGENTS.md` dengan scope couch 1v1 local split-screen (2 gamepad).
   2. 4 Prasyarat awal telah diputuskan: komponen `Health` diputuskan untuk dipakai dan diperbaiki (pada W1-A1/W1-A4); GameMode aktif `/Game/GameMode/BP_ThirdPersonGameMode` dan PlayerController aktif `/Game/Characters/BP_PlayerController`; file Git Modified dipertahankan.
   3. Setup tooling awal: skrip helper dipindahkan ke `tools/unreal_mcp_client.py`, dan `.gitignore` telah diperbarui dengan `.gemini/`, `.agents/`, dan `tools/`.
   4. Pengaturan split-screen horizontal dan Gamepad ID assignment terverifikasi di `DefaultEngine.ini`.
@@ -136,9 +136,10 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 
 ## 2. Next Action
 - **Tindakan**: Konfirmasi prioritas pengerjaan task berikutnya dengan tim/user:
-  - **Opsi 1 (Gameplay - W2-A1)**: Implementasi *AOE Contest* (genangan AOE baru menghapus penuh AOE lawan yang saling overlap).
-  - **Opsi 2 (Match Loop - W2-B1)**: Implementasi `BP_MatchManager` (Best-of-3, ronde timer 120s, jeda 3s, pelacak skor).
-  - **Opsi 3 (Balancing - W1-B4)**: Pembuatan Data Asset `DA_Tuning` untuk mengunci seluruh konstanta gameplay §4.
+  - **Opsi 1 (Langkah 3 - L3-A1)**: Implementasi *AOE Contest* (genangan AOE baru menghapus penuh AOE lawan yang saling overlap).
+  - **Opsi 2 (Langkah 3 - L3-A2)**: Spawner acak `BP_PotionPickup` di 5 titik (interval 12 s jika pickup aktif < 2).
+  - **Opsi 3 (Langkah 3 - L3-B2)**: Pembuatan Data Asset `DA_Tuning` untuk mengunci seluruh konstanta gameplay §4.
+  - **Opsi 4 (Langkah 5 - L5-B1)**: Implementasi `BP_MatchManager` (Best-of-3, ronde timer 120s, jeda 3s, manual round reset).
 - **Pelaksana**: Agent & User.
 - **Prasyarat**: Checkpoint Git W2-A2 & Polish Layar Hasil ter-commit ✅
 
@@ -155,6 +156,7 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | 2026-11-20 | Tim / User | GameMode aktif dikonfirmasi `/Game/GameMode/BP_ThirdPersonGameMode` (aktif di WorldSettings `Lvl_ThirdPerson`) dan PlayerController aktif `/Game/Characters/BP_PlayerController`. |
 | 2026-11-20 | Tim / User | File Git berstatus *Modified* (`Health.uasset` & `BP_ThirdPersonGameMode.uasset`) dipertahankan apa adanya (tidak di-reset). |
 | 2026-11-20 | Antigravity | `BP_GameInstance` dibuat di `/Game/Splashfall/Blueprints/BP_GameInstance` via Unreal MCP dengan guard `GetNumLocalPlayerControllers < 2` sebelum `CreateLocalPlayer(-1)`. |
+| 2026-11-27 | User | Rencana pengerjaan di `AGENTS.md` diubah dari jadwal berbasis hari/minggu kalender menjadi alur berbasis langkah berurutan (Langkah 1–8). |
 
 > *Catatan*: Seluruh parameter tuning di `AGENTS.md` §4 (HP 100, potion 3/5, jarak lempar 25 m, cooldown 0.75 s, AOE radius 2.75 m / durasi 5 s / DPS 5 HP/s, durasi ronde 120 s) saat ini **masih berstatus usulan baseline** dan belum dikonfirmasi melalui playtest.
 
@@ -298,3 +300,4 @@ Dokumen pelacak kondisi terkini proyek. Berfungsi sebagai konteks langsung antar
 | 2026-11-21 | Antigravity | Eksekusi task W2-A2: (1) Buat Material Instances `MI_Poison_P1` (hijau racun terang), `MI_Poison_P2` (ungu neon), dan `MI_PotionPickup` (biru cyan) di `/Game/Splashfall/Materials/` via `MaterialInstanceTools.create` & `set_vector_parameter`. (2) Update `BP_PoisonAOE:EventGraph`: EventBeginPlay pasang material P1/P2 dinamis ke AOEMesh berdasarkan `PlayerIndex` pemilik (`GetOwner -> CastToBP_Player -> GetPlayerIndex`). (3) Update `BP_PotionPickup:UserConstructionScript`: pasang `MI_PotionPickup` ke `PickupMesh`. (4) Bersihkan node `PrintString` di `BP_Player:ApplyPoisonTick`. Integritas `BP_Player:EventGraph` terjaga utuh. Compile & save seluruh aset OK. | Task W2-A2 selesai, seluruh Blueprint ter-compile tanpa error dan siap dites di PIE. |
 | 2026-11-21 | User / Antigravity | Verifikasi PIE W2-A2 & Polish Layar Hasil: (1) Tes visual AOE hijau P1 dan ungu P2 serta pickup cyan terverifikasi berjalan sesuai. (2) Update `WBP_ResultScreen:SetWinnerText`: styling teks otomatis ("VICTORY" = emas, "DEFEAT" = merah tua via `MakeSlateColor`). (3) Update `BP_Player:HandleDeath`: spawn widget mandiri per player controller (`PC0` & `PC1`), tentukan status pemenang/pecundang berdasarkan `PlayerIndex` karakter yang gugur, dan tampilkan ke layar masing-masing via `AddToPlayerScreen`. Integritas `BP_Player:EventGraph` terjaga. Compile & save OK. | Tampilan hasil disesuaikan: pemain menang mendapat "VICTORY" emas, pemain kalah mendapat "DEFEAT" merah di layar masing-masing. Siap diverifikasi di PIE. |
 | 2026-11-27 | Antigravity | Audit status Git & sinkronisasi commit 4 aset Blueprint (`BP_Player`, `BP_PlayerController`, `BP_PoisonProjectile`, `WBP_ResultScreen`) yang ter-resave otomatis oleh Unreal Editor saat penutupan sesi 21 Nov (ukuran byte & string table identik dengan `HEAD`); `Config/DefaultEngine.ini` (`bOffsetPlayerGamepadIds=True`) tetap dibiarkan unstaged sesuai aturan dev. | Working tree seluruh `.uasset` bersih; siap masuk ke pengerjaan task Minggu 2. |
+| 2026-11-27 | Antigravity | Restrukturisasi `AGENTS.md` dari jadwal berbasis hari/minggu (`W1–W3`) menjadi rencana berbasis langkah berurutan (Langkah 1–8 / `L1–L8`) beserta sinkronisasi posisi & next action di `PROGRESS.md`. | Seluruh 30 task dan status `[x]` terjaga utuh dalam urutan langkah fungsional tanpa ketergantungan jadwal hari. |
